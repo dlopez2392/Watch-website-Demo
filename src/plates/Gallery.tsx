@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import '@fontsource/cormorant-garamond/500.css';
 import '@fontsource/cormorant-garamond/500-italic.css';
 import '@fontsource/cormorant-garamond/600.css';
@@ -9,12 +10,18 @@ import { PlateBalance, PlateCase, PlateEscapement, PlateFinish, PlateSection, Pl
 
 /**
  * Every plate on one sheet, fully drawn: /?plates
- * For checking the drawings against the calibre; `?plates=train` (or escapement, balance, winding,
+ * For checking the drawings against the calibre (add `&move` to set them running); `?plates=train` (or escapement, balance, winding,
  * section, finish, codice, lungarno, tirreno, doppiofuso) shows one alone, large.
  */
 export default function Gallery() {
+  const query = new URLSearchParams(window.location.search);
+  const only = query.get('plates');
+  // `&move` sets the plates running, as they do on the page once drawn
+  const move = query.has('move');
   document.documentElement.classList.add('no-motion');
-  const only = new URLSearchParams(window.location.search).get('plates');
+  useEffect(() => {
+    if (move) document.querySelectorAll('svg[data-plate]').forEach((svg) => svg.setAttribute('data-drawn', 'true'));
+  }, [move]);
   const all: [string, React.ReactNode, boolean?][] = [
     ['train', <PlateTrain />],
     ['escapement', <PlateEscapement />],

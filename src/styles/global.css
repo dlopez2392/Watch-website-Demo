@@ -419,6 +419,15 @@ button {
   stroke-width: 0.34em;
   stroke-linejoin: round;
 }
+/* a note about how a plate moves, for those it moves for */
+.no-motion .plate-svg text.live-note {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .plate-svg text.live-note {
+    display: none;
+  }
+}
 .plate-svg text.num {
   font-style: normal;
   font-weight: 600;

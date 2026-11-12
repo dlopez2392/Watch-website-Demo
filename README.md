@@ -115,7 +115,14 @@ beats an hour; a mainspring of eighteen and a half turns measures the 420 mm the
 calibre is 31.0 mm across and 5.9 mm high, as dimensioned; nineteen jewels are counted out under the
 section they are drawn in. Each case drawing shows that watch's own dial, hands, bezel and profile.
 
-- `/?plates` (all of them, fully drawn)
+Once a plate has drawn itself in, it runs (`useLive` in `plates.tsx`). The going train takes up the
+time of day and turns in real time; the escapement is shown at an eighth of its speed and the balance
+at a sixth, so the beat and the breathing of the spring can be followed; the winding plate winds a
+quarter turn of the ratchet at a time, the click riding over each tooth; and the hands on each case
+drawing sweep from ten past ten to the visitor's own time and keep it. Nothing moves off screen or
+for a visitor who has asked for less motion.
+
+- `/?plates` (all of them, fully drawn; add `&move` to set them running)
 - `/?plates=escapement` (one alone: `train`, `escapement`, `balance`, `winding`, `section`, `finish`, or a watch id)
 
 ## The studio

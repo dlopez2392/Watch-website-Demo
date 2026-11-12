@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode, type Ref } from 'react';
 import {
   AX,
   BALANCE_R,
@@ -33,6 +33,8 @@ import {
   type P2,
 } from '../lib/calibre';
 import type { WatchSpec } from '../lib/watches';
+import { prefersReducedMotion } from '../lib/env';
+import { onFrame } from '../lib/frame';
 
 /**
  * Plates are drawn in millimetres from the calibre's own data, the same numbers the
@@ -50,11 +52,12 @@ interface SvgProps {
   children: ReactNode;
   mode?: 'once' | 'scrub';
   className?: string;
+  svgRef?: Ref<SVGSVGElement>;
 }
 
-export function PlateSvg({ viewBox, label, children, mode = 'once', className = '' }: SvgProps) {
+export function PlateSvg({ viewBox, label, children, mode = 'once', className = '', svgRef }: SvgProps) {
   return (
-    <svg className={`plate-svg ${className}`} viewBox={viewBox} data-plate={mode} role="img" aria-label={label}>
+    <svg ref={svgRef} className={`plate-svg ${className}`} viewBox={viewBox} data-plate={mode} role="img" aria-label={label}>
       {children}
     </svg>
   );
@@ -147,7 +150,101 @@ function Dim({ a, b, off, label, size = 0.6, gap = 0.55 }: { a: P2; b: P2; off: 
   );
 }
 
+/* ------------------------------------------------------------ plates that run */
+
+/** Whatever is wrapped in this turns, slides or swings once the plate has been drawn. */
+const Live = ({ id, children }: { id: string; children: ReactNode }) => <g data-live={id}>{children}</g>;
+
+interface Mover {
+  /** turn every element with this name about a point; radians, anticlockwise in the plate's own frame */
+  spin(id: string, rad: number, about: P2): void;
+  /** slide every element with this name */
+  shift(id: string, dx: number, dy: number): void;
+  all(id: string): Element[];
+}
+
+/**
+ * Sets a plate in motion. Nothing moves until its lines have finished drawing (the page marks the
+ * svg `data-drawn`), nor while it is off screen, nor for a visitor who has asked for less motion.
+ * `tick` receives the seconds since the plate began to move and a factor that eases from 0 to 1,
+ * so that the drawing leaves its drawn pose gently instead of jumping.
+ */
+function useLive(tick: (m: Mover, seconds: number, ease: number) => void, always = false) {
+  const ref = useRef<SVGSVGElement>(null);
+  const fn = useRef(tick);
+  fn.current = tick;
+  useEffect(() => {
+    const svg = ref.current;
+    if (!svg || prefersReducedMotion()) return;
+    const cache = new Map<string, Element[]>();
+    const all = (id: string) => {
+      let list = cache.get(id);
+      if (!list) cache.set(id, (list = Array.from(svg.querySelectorAll(`[data-live="${id}"]`))));
+      return list;
+    };
+    const mover: Mover = {
+      all,
+      spin: (id, rad, c) => {
+        const v = `rotate(${(rad / DEG).toFixed(2)} ${c[0].toFixed(3)} ${c[1].toFixed(3)})`;
+        for (const el of all(id)) el.setAttribute('transform', v);
+      },
+      shift: (id, dx, dy) => {
+        const v = `translate(${dx.toFixed(3)} ${dy.toFixed(3)})`;
+        for (const el of all(id)) el.setAttribute('transform', v);
+      },
+    };
+    let visible = false;
+    let began = 0;
+    const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { threshold: 0.12 });
+    io.observe(svg);
+    const off = onFrame((now) => {
+      if (!visible || (!always && svg.dataset.drawn !== 'true')) return;
+      if (!began) began = now;
+      const sec = (now - began) / 1000;
+      const k = Math.min(1, sec / 1.8);
+      fn.current(mover, sec, k * k * (3 - 2 * k));
+    });
+    return () => {
+      io.disconnect();
+      off();
+    };
+  }, [always]);
+  return ref;
+}
+
+const wrapPi = (a: number) => {
+  let x = (a + Math.PI) % TAU;
+  if (x < 0) x += TAU;
+  return x - Math.PI;
+};
+const clockNow = () => {
+  const d = new Date();
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds() + d.getMilliseconds() / 1000;
+};
+
+/**
+ * Carries a drawing from the pose it was drawn in to the live one by the short way round, and then
+ * follows it: `to(key, live, drawn, ease)` returns how far to turn.
+ */
+function follower() {
+  const base = new Map<string, number>();
+  return (key: string, live: number, drawn: number, ease: number) => {
+    let b = base.get(key);
+    if (b === undefined) base.set(key, (b = wrapPi(live - drawn) - live));
+    return (live + b) * ease;
+  };
+}
+
+/** Shown only where the plate actually moves. */
+const LiveNote = ({ at, children, size = 0.46, anchor = 'start' }: { at: P2; children: ReactNode; size?: number; anchor?: 'start' | 'middle' | 'end' }) => (
+  <text {...F} className="halo live-note" x={at[0]} y={-at[1]} fontSize={size} textAnchor={anchor}>
+    {children}
+  </text>
+);
+
 /* ------------------------------------------------------------ shared parts */
+
+const BEATS = 6; // a second, at 21,600 an hour
 
 const PALLET_OUTLINE: P2[] = [
   [2.78, -0.17], [2.3, -0.17], [2.3, 0.17], [2.78, 0.17], [2.78, 0.5], [2.2, 0.46], [1.85, 0.2], [0.55, 0.22], [0.3, 0.4],
@@ -174,8 +271,20 @@ export function PlateTrain() {
   const chain = [AX.barrel, AX.centre, AX.third, AX.fourth, AX.escape, AX.pallet, AX.balance];
   const lever = REST + 7.5 * DEG;
   const arm = REST + 70 * DEG;
+  // once drawn, the train takes up the time of day and runs: one turn a minute at the fourth wheel
+  const to = useRef(follower()).current;
+  const svgRef = useLive((m, _sec, k) => {
+    const n = trainAt(clockNow());
+    m.spin('barrel', to('barrel', n.barrel, s.barrel, k), AX.barrel);
+    m.spin('centre', to('centre', n.centre, s.centre, k), AX.centre);
+    m.spin('third', to('third', n.third, s.third, k), AX.third);
+    m.spin('fourth', to('fourth', n.fourth, s.fourth, k), AX.fourth);
+    m.spin('escape', to('escape', n.escape, s.escape, k), AX.escape);
+    m.spin('lever', (n.pallet - 7.5 * DEG) * k, AX.pallet);
+    m.spin('balance', n.balance * k, AX.balance);
+  });
   return (
-    <PlateSvg viewBox="-20.5 -20.5 41 41" label="Plan of the going train from the dial side: barrel, centre, third and fourth wheels, escape wheel, lever and balance, drawn in mesh with their tooth counts; the bridges behind are shown in broken line.">
+    <PlateSvg svgRef={svgRef} viewBox="-20.5 -20.5 41 41" label="Plan of the going train from the dial side: barrel, centre, third and fourth wheels, escape wheel, lever and balance, drawn in mesh with their tooth counts; the bridges behind are shown in broken line.">
       <Up>
         <circle className="c" r={18.6} strokeWidth={W.c} {...D} />
         <line className="c" x1={-20} y1={0} x2={20} y2={0} strokeWidth={W.c} {...D} />
@@ -194,30 +303,50 @@ export function PlateTrain() {
         {/* balance, furthest from the eye */}
         <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={BALANCE_R} strokeWidth={W.i} {...D} />
         <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={4.36} strokeWidth={W.c} {...D} />
-        {[1, -1].map((sg) => {
-          const p0 = add(AX.balance, polar(4.36, arm + (sg > 0 ? 0 : Math.PI)));
-          const p1 = add(AX.balance, polar(0.84, arm + (sg > 0 ? 0 : Math.PI)));
-          return <line key={sg} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.5} strokeLinecap="butt" strokeOpacity={0.28} {...F} />;
-        })}
+        <Live id="balance">
+          {[1, -1].map((sg) => {
+            const p0 = add(AX.balance, polar(4.36, arm + (sg > 0 ? 0 : Math.PI)));
+            const p1 = add(AX.balance, polar(0.84, arm + (sg > 0 ? 0 : Math.PI)));
+            return <line key={sg} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.5} strokeLinecap="butt" strokeOpacity={0.28} {...F} />;
+          })}
+        </Live>
         <path className="c" d={ptsToPath(translatePts(spiral(HAIRSPRING.r0, HAIRSPRING.r1, HAIRSPRING.turns, 420, 0.4), AX.balance), false)} strokeWidth={0.03} {...D} />
         <circle className="i fill-paper" cx={AX.balance[0]} cy={AX.balance[1]} r={0.84} strokeWidth={W.c} {...D} />
         {/* then the train, furthest first, so nearer wheels cover them */}
-        <Wheel g={GEAR.thirdWheel} c={AX.third} phase={s.third} hub={0.72} rim={0.42} spokes={5} />
-        <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={W.i} {...D} />
-        <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={W.c} {...D} />
-        <path className="i fill-paper" d={ptsToPath(forkAt(lever))} strokeWidth={W.c} {...D} />
-        <path className="fill-s" d={ptsToPath(stoneAt(1, lever))} {...F} />
-        <path className="fill-s" d={ptsToPath(stoneAt(-1, lever))} {...F} />
-        <Wheel g={GEAR.centreWheel} c={AX.centre} phase={s.centre} hub={1.0} rim={0.5} spokes={5} />
-        <Pinion g={GEAR.thirdPinion} c={AX.third} phase={s.third} />
-        <Wheel g={GEAR.fourthWheel} c={AX.fourth} phase={s.fourth} hub={0.7} rim={0.4} spokes={6} />
-        <Pinion g={GEAR.fourthPinion} c={AX.fourth} phase={s.fourth} />
-        <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
-        <path className="i fill-paper" d={ptsToPath(translatePts(gearOutline(GEAR.barrel, { phase: s.barrel }), AX.barrel))} strokeWidth={W.i} {...D} />
-        <circle className="i" cx={AX.barrel[0]} cy={AX.barrel[1]} r={6.05} strokeWidth={W.c} {...D} />
-        <Mainspring c={AX.barrel} phase={s.barrel} />
+        <Live id="third">
+          <Wheel g={GEAR.thirdWheel} c={AX.third} phase={s.third} hub={0.72} rim={0.42} spokes={5} />
+        </Live>
+        <Live id="escape">
+          <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={W.i} {...D} />
+          <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={W.c} {...D} />
+        </Live>
+        <Live id="lever">
+          <path className="i fill-paper" d={ptsToPath(forkAt(lever))} strokeWidth={W.c} {...D} />
+          <path className="fill-s" d={ptsToPath(stoneAt(1, lever))} {...F} />
+          <path className="fill-s" d={ptsToPath(stoneAt(-1, lever))} {...F} />
+        </Live>
+        <Live id="centre">
+          <Wheel g={GEAR.centreWheel} c={AX.centre} phase={s.centre} hub={1.0} rim={0.5} spokes={5} />
+        </Live>
+        <Live id="third">
+          <Pinion g={GEAR.thirdPinion} c={AX.third} phase={s.third} />
+        </Live>
+        <Live id="fourth">
+          <Wheel g={GEAR.fourthWheel} c={AX.fourth} phase={s.fourth} hub={0.7} rim={0.4} spokes={6} />
+          <Pinion g={GEAR.fourthPinion} c={AX.fourth} phase={s.fourth} />
+        </Live>
+        <Live id="escape">
+          <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
+        </Live>
+        <Live id="barrel">
+          <path className="i fill-paper" d={ptsToPath(translatePts(gearOutline(GEAR.barrel, { phase: s.barrel }), AX.barrel))} strokeWidth={W.i} {...D} />
+          <circle className="i" cx={AX.barrel[0]} cy={AX.barrel[1]} r={6.05} strokeWidth={W.c} {...D} />
+          <Mainspring c={AX.barrel} phase={s.barrel} />
+        </Live>
         <circle className="i fill-paper" cx={AX.barrel[0]} cy={AX.barrel[1]} r={1.15} strokeWidth={W.i} {...D} />
-        <Pinion g={GEAR.centrePinion} c={AX.centre} phase={s.centre} />
+        <Live id="centre">
+          <Pinion g={GEAR.centrePinion} c={AX.centre} phase={s.centre} />
+        </Live>
         {/* the line of centres, in red chalk, and a jewel at every pivot */}
         <path className="s" d={ptsToPath(chain, false)} strokeWidth={W.s} {...D} />
         <Pivot c={AX.barrel} />
@@ -249,6 +378,9 @@ export function PlateTrain() {
         z 15
       </Note>
       <Note at={[-19.6, 18.6]}>dal lato del quadrante</Note>
+      <LiveNote at={[19.6, 18.6]} anchor="end" size={0.95}>
+        in tempo reale
+      </LiveNote>
       <Note at={[-19.6, -19.5]} size={0.92}>
         64 : 8 × 60 : 8 = 60 : 1
       </Note>
@@ -270,8 +402,22 @@ export function PlateEscapement() {
   const cy = -5.75;
   const h = 6.05;
   const ax = polar(1, angleTo(AX.escape, AX.balance));
+  // Once drawn it runs at an eighth of its speed, so the beat can be followed: the pin comes round on
+  // the roller, enters the fork and throws the lever across; one tooth escapes; the pin leaves again.
+  const svgRef = useLive((m, sec, k) => {
+    const beats = 1.5 + (sec * BEATS) / 8;
+    const n = Math.round(beats);
+    const x = beats - n;
+    const t = Math.min(1, Math.max(0, (x + 0.03) / 0.06));
+    const across = t * t * (3 - 2 * t);
+    const side = Math.abs(n) % 2 === 0 ? 1 : -1;
+    const swing = Math.sin(Math.PI * beats) * 270 * DEG;
+    m.spin('lever', (side * (1 - 2 * across) - 1) * 7.5 * DEG, AX.pallet);
+    m.spin('escape', ((n - 2 + across) * TAU) / 30, AX.escape);
+    m.spin('pin', (swing - 18 * DEG) * k, AX.balance);
+  });
   return (
-    <PlateSvg viewBox={`${cx - h} ${-cy - h} ${h * 2} ${h * 2}`} label="The Swiss lever escapement at five times life size: the fifteen-tooth escape wheel, the lever with its two ruby pallets between the banking pins, and the roller of the balance with its impulse pin.">
+    <PlateSvg svgRef={svgRef} viewBox={`${cx - h} ${-cy - h} ${h * 2} ${h * 2}`} label="The Swiss lever escapement at five times life size: the fifteen-tooth escape wheel, the lever with its two ruby pallets between the banking pins, and the roller of the balance with its impulse pin.">
       <defs>
         <clipPath id="esc-clip">
           <rect x={cx - h + 0.35} y={-cy - h + 0.35} width={h * 2 - 0.7} height={h * 2 - 0.7} />
@@ -289,29 +435,35 @@ export function PlateEscapement() {
         <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={0.5} strokeWidth={0.03} {...D} />
         {/* escape wheel */}
         <circle className="c" cx={AX.escape[0]} cy={AX.escape[1]} r={ESCAPE_R} strokeWidth={0.03} {...D} />
-        <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={0.055} {...D} />
-        <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={0.035} {...D} />
-        {[0, 1, 2].map((k) => {
-          const an = s.escape + 0.2 + (k / 3) * TAU;
-          const p0 = add(AX.escape, polar(0.5, an));
-          const p1 = add(AX.escape, polar(1.42, an));
-          return <line key={k} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.26} strokeLinecap="butt" strokeOpacity={0.3} {...F} />;
-        })}
-        <circle className="i fill-paper" cx={AX.escape[0]} cy={AX.escape[1]} r={0.5} strokeWidth={0.05} {...D} />
-        <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
+        <Live id="escape">
+          <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={0.055} {...D} />
+          <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={0.035} {...D} />
+          {[0, 1, 2].map((k) => {
+            const an = s.escape + 0.2 + (k / 3) * TAU;
+            const p0 = add(AX.escape, polar(0.5, an));
+            const p1 = add(AX.escape, polar(1.42, an));
+            return <line key={k} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.26} strokeLinecap="butt" strokeOpacity={0.3} {...F} />;
+          })}
+          <circle className="i fill-paper" cx={AX.escape[0]} cy={AX.escape[1]} r={0.5} strokeWidth={0.05} {...D} />
+          <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
+        </Live>
         {/* the swing of the lever, and the pins that bound it */}
         <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(1, 5.5)[0]} y2={swing(1, 5.5)[1]} strokeWidth={0.03} {...D} />
         <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(-1, 5.5)[0]} y2={swing(-1, 5.5)[1]} strokeWidth={0.03} {...D} />
         <path className="s" d={ptsToPath([-7.5, -3.75, 0, 3.75, 7.5].map((d) => add(AX.pallet, polar(5.2, REST + d * DEG))), false)} strokeWidth={0.035} {...D} />
         <path className="c" d={ptsToPath(forkAt(REST - 7.5 * DEG))} strokeWidth={0.035} strokeDasharray="0.16 0.12" {...F} />
         {/* the lever and its stones */}
-        <path className="i fill-paper" d={ptsToPath(forkAt(a))} strokeWidth={0.06} {...D} />
-        <path className="fill-s" d={ptsToPath(stoneAt(1, a))} {...F} />
-        <path className="fill-s" d={ptsToPath(stoneAt(-1, a))} {...F} />
+        <Live id="lever">
+          <path className="i fill-paper" d={ptsToPath(forkAt(a))} strokeWidth={0.06} {...D} />
+          <path className="fill-s" d={ptsToPath(stoneAt(1, a))} {...F} />
+          <path className="fill-s" d={ptsToPath(stoneAt(-1, a))} {...F} />
+        </Live>
         {BANKING.map((p, i) => (
           <circle key={i} className="i fill-paper" cx={p[0]} cy={p[1]} r={0.11} strokeWidth={0.04} {...D} />
         ))}
-        <circle className="fill-s" cx={pin[0]} cy={pin[1]} r={0.13} {...F} />
+        <Live id="pin">
+          <circle className="fill-s" cx={pin[0]} cy={pin[1]} r={0.13} {...F} />
+        </Live>
         <Jewel c={AX.pallet} r={0.2} />
         <Jewel c={AX.escape} r={0.22} />
         <Jewel c={AX.balance} r={0.24} />
@@ -331,6 +483,9 @@ export function PlateEscapement() {
       <Note at={[cx + h - 0.55, cy + h - 0.95]} size={0.46} anchor="end">
         scala 5 : 1
       </Note>
+      <LiveNote at={[cx + h - 0.55, cy + h - 1.65]} anchor="end">
+        al rallentatore, 1 : 8
+      </LiveNote>
     </PlateSvg>
   );
 }
@@ -350,8 +505,23 @@ export function PlateBalance() {
   const curb = polar(HAIRSPRING.r1 - 0.02, curbAt);
   const pinAt = polar(0.72, -68 * DEG);
   const V = 8.3;
+  // Once drawn it is set swinging, at a sixth of its speed: the amplitude builds to 270 degrees each way,
+  // and the spring, held at its stud, winds and unwinds about the collet.
+  const svgRef = useLive((m, sec) => {
+    const grow = Math.min(1, sec / 5);
+    const theta = 270 * DEG * grow * grow * (3 - 2 * grow) * Math.sin((TAU * sec * 3) / 6);
+    m.spin('wheel', theta, [0, 0]);
+    const n = 560;
+    let d = '';
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const p = polar(HAIRSPRING.r0 + (HAIRSPRING.r1 - HAIRSPRING.r0) * t, 0.4 + t * HAIRSPRING.turns * TAU + theta * (1 - t));
+      d += `${i ? 'L' : 'M'}${p[0].toFixed(3)} ${p[1].toFixed(3)}`;
+    }
+    for (const el of m.all('spring')) el.setAttribute('d', d);
+  });
   return (
-    <PlateSvg viewBox={`${-V} ${-V} ${V * 2} ${V * 2}`} label="The balance at five times life size: a ten-millimetre wheel with fourteen timing screws on its rim, the hairspring of eleven and a half turns pinned at its stud, the regulator pins, and the roller with its impulse pin beneath.">
+    <PlateSvg svgRef={svgRef} viewBox={`${-V} ${-V} ${V * 2} ${V * 2}`} label="The balance at five times life size: a ten-millimetre wheel with fourteen timing screws on its rim, the hairspring of eleven and a half turns pinned at its stud, the regulator pins, and the roller with its impulse pin beneath.">
       <Up>
         <line className="c" x1={-V + 0.3} y1={0} x2={V - 0.3} y2={0} strokeWidth={0.03} {...D} />
         <line className="c" x1={0} y1={-V + 0.3} x2={0} y2={V - 0.3} strokeWidth={0.03} {...D} />
@@ -364,6 +534,7 @@ export function PlateBalance() {
           strokeDasharray="0.2 0.14"
           {...F}
         />
+        <Live id="wheel">
         <circle className="i fill-paper" r={BALANCE_R} strokeWidth={0.065} {...D} />
         <circle className="i" r={4.36} strokeWidth={0.05} {...D} />
         {[1, -1].map((sg) => (
@@ -386,7 +557,8 @@ export function PlateBalance() {
         {/* roller and impulse pin, beneath */}
         <circle className="c" r={0.84} strokeWidth={0.035} strokeDasharray="0.12 0.09" {...F} />
         <circle className="fill-s" cx={pinAt[0]} cy={pinAt[1]} r={0.13} {...F} />
-        <path className="i" d={ptsToPath(coil, false)} strokeWidth={0.04} {...D} />
+        </Live>
+        <path data-live="spring" className="i" d={ptsToPath(coil, false)} strokeWidth={0.04} {...D} />
         <circle className="i fill-paper" r={0.52} strokeWidth={0.05} {...D} />
         <circle className="fill-s" r={0.15} {...F} />
         {/* stud, and the two regulator pins that set the working length of the spring */}
@@ -412,6 +584,9 @@ export function PlateBalance() {
       <Note at={[V - 0.5, -V + 0.55]} size={0.46} anchor="end">
         11 ½ spire
       </Note>
+      <LiveNote at={[V - 0.5, V - 0.95]} anchor="end">
+        al rallentatore, 1 : 6
+      </LiveNote>
     </PlateSvg>
   );
 }
@@ -433,8 +608,36 @@ export function PlateWinding() {
   };
   const tRatchet = turn(B, 3.7, 150, 60);
   const tCrown = turn(CW, 2.35, 250, 340);
+  const clickPivot = add(clickAt, rot([-1.2, 0], 110 * DEG));
+  // Once drawn, the crown is wound: a quarter turn of the ratchet at a time, the click riding over
+  // each tooth and falling behind it, then a rest.
+  const svgRef = useLive((m, sec) => {
+    const cycle = 6.5;
+    const u = Math.min(1, (sec % cycle) / 4.4);
+    const phi = (Math.floor(sec / cycle) + u * u * (3 - 2 * u)) * 90 * DEG;
+    const tooth = TAU / GEAR.ratchet.N;
+    const ride = (phi / tooth) % 1;
+    m.spin('ratchet', -phi, B);
+    m.spin('crownwheel', (phi * GEAR.ratchet.N) / GEAR.crownWheel.N, CW);
+    m.spin('click', -5.5 * DEG * ride, clickPivot);
+    const stem = (phi * GEAR.ratchet.N) / 10;
+    m.shift('flutes', 0, ((stem / (TAU / 30)) % 1) * 0.39);
+    m.shift('pinion', 0, ((stem / (TAU / 10)) % 1) * 0.445);
+    m.shift('sliding', 0, ((stem / (TAU / 8)) % 1) * 0.46);
+  });
   return (
-    <PlateSvg viewBox="-5.5 -15.5 31 22.6" label="The winding train from the bridge side: crown and stem, winding pinion, crown wheel of thirty-two teeth, ratchet wheel of forty-eight, and the click, above the mainspring barrel.">
+    <PlateSvg svgRef={svgRef} viewBox="-5.5 -15.5 31 22.6" label="The winding train from the bridge side: crown and stem, winding pinion, crown wheel of thirty-two teeth, ratchet wheel of forty-eight, and the click, above the mainspring barrel.">
+      <defs>
+        <clipPath id="wind-crown">
+          <rect x={20.3} y={-2.25} width={2.5} height={4.5} />
+        </clipPath>
+        <clipPath id="wind-pinion">
+          <rect x={12.2} y={-1.1} width={1.1} height={2.2} />
+        </clipPath>
+        <clipPath id="wind-sliding">
+          <rect x={9.4} y={-0.9} width={1.7} height={1.8} />
+        </clipPath>
+      </defs>
       <Up>
         <path className="c" d={ptsToPath(Array.from({ length: 50 }, (_, i) => polar(PLATE_R, (-28 + i * 2.6) * DEG)), false)} strokeWidth={W.c} {...D} />
         <path className="c" d={ptsToPath(Array.from({ length: 44 }, (_, i) => polar(19.5, (-22 + i * 2.2) * DEG)), false)} strokeWidth={W.c} {...D} />
@@ -444,16 +647,26 @@ export function PlateWinding() {
         <circle className="i" cx={B[0]} cy={B[1]} r={6.05} strokeWidth={W.c} {...D} />
         <Mainspring c={B} phase={s.barrel} w={0.036} />
         {/* ratchet and crown wheel, above, in red chalk */}
-        <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.ratchet, { phase: ratchetPhase, add: 0.8, ded: 0.9 }), B))} strokeWidth={W.s} {...D} />
-        <circle className="s" cx={B[0]} cy={B[1]} r={2.6} strokeWidth={W.c} {...D} />
-        <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.crownWheel, { phase: angleTo(CW, B) + Math.PI / 32 + ratchetPhase * 1.5, add: 0.8, ded: 0.9 }), CW))} strokeWidth={W.s} {...D} />
-        <circle className="s" cx={CW[0]} cy={CW[1]} r={1.7} strokeWidth={W.c} {...D} />
-        <path className="s fill-paper" d={ptsToPath(click)} strokeWidth={W.s} {...D} />
+        <Live id="ratchet">
+          <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.ratchet, { phase: ratchetPhase, add: 0.8, ded: 0.9 }), B))} strokeWidth={W.s} {...D} />
+          <circle className="s" cx={B[0]} cy={B[1]} r={2.6} strokeWidth={W.c} {...D} />
+        </Live>
+        <Live id="crownwheel">
+          <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.crownWheel, { phase: angleTo(CW, B) + Math.PI / 32 + ratchetPhase * 1.5, add: 0.8, ded: 0.9 }), CW))} strokeWidth={W.s} {...D} />
+          <circle className="s" cx={CW[0]} cy={CW[1]} r={1.7} strokeWidth={W.c} {...D} />
+        </Live>
+        <Live id="click">
+          <path className="s fill-paper" d={ptsToPath(click)} strokeWidth={W.s} {...D} />
+        </Live>
         <path className="s" d={`M${click[4][0]} ${click[4][1]}Q${clickAt[0] - 3.4} ${clickAt[1] + 1.2} ${clickAt[0] - 2.2} ${clickAt[1] + 4.4}`} strokeWidth={0.05} {...D} />
-        <circle className="i fill-paper" cx={B[0]} cy={B[1]} r={1.05} strokeWidth={W.i} {...D} />
-        <line className="i" x1={B[0] - 0.7} y1={B[1] - 0.55} x2={B[0] + 0.7} y2={B[1] + 0.55} strokeWidth={0.12} {...F} />
-        <circle className="i fill-paper" cx={CW[0]} cy={CW[1]} r={0.85} strokeWidth={W.i} {...D} />
-        <line className="i" x1={CW[0] - 0.6} y1={CW[1] + 0.4} x2={CW[0] + 0.6} y2={CW[1] - 0.4} strokeWidth={0.12} {...F} />
+        <Live id="ratchet">
+          <circle className="i fill-paper" cx={B[0]} cy={B[1]} r={1.05} strokeWidth={W.i} {...D} />
+          <line className="i" x1={B[0] - 0.7} y1={B[1] - 0.55} x2={B[0] + 0.7} y2={B[1] + 0.55} strokeWidth={0.12} {...F} />
+        </Live>
+        <Live id="crownwheel">
+          <circle className="i fill-paper" cx={CW[0]} cy={CW[1]} r={0.85} strokeWidth={W.i} {...D} />
+          <line className="i" x1={CW[0] - 0.6} y1={CW[1] + 0.4} x2={CW[0] + 0.6} y2={CW[1] - 0.4} strokeWidth={0.12} {...F} />
+        </Live>
         {/* which way they turn when the crown is wound */}
         <path className="c" d={ptsToPath(tRatchet, false)} strokeWidth={0.07} {...D} />
         <path className="c" d={ptsToPath(tip(tRatchet), false)} strokeWidth={0.07} {...D} />
@@ -462,15 +675,27 @@ export function PlateWinding() {
         {/* stem and crown */}
         <path className="i" d="M5.4 0.42H19.6M5.4 -0.42H19.6" strokeWidth={W.i} {...D} />
         <rect className="i fill-paper" x={9.4} y={-0.92} width={1.7} height={1.84} strokeWidth={W.i} {...D} />
-        <path className="i" d="M9.4 -0.46H11.1M9.4 0H11.1M9.4 0.46H11.1" strokeWidth={W.c} {...F} />
+        <g clipPath="url(#wind-sliding)">
+          <Live id="sliding">
+            <path className="i" d="M9.4 -0.92H11.1M9.4 -0.46H11.1M9.4 0H11.1M9.4 0.46H11.1" strokeWidth={W.c} {...F} />
+          </Live>
+        </g>
         <rect className="i fill-paper" x={12.2} y={-1.12} width={1.1} height={2.24} strokeWidth={W.i} {...D} />
-        <path className="i" d="M12.2 -0.67H13.3M12.2 -0.22H13.3M12.2 0.22H13.3M12.2 0.67H13.3" strokeWidth={W.c} {...F} />
+        <g clipPath="url(#wind-pinion)">
+          <Live id="pinion">
+            <path className="i" d="M12.2 -1.115H13.3M12.2 -0.67H13.3M12.2 -0.22H13.3M12.2 0.22H13.3M12.2 0.67H13.3" strokeWidth={W.c} {...F} />
+          </Live>
+        </g>
         <rect className="i fill-paper" x={19.5} y={-1.7} width={0.8} height={3.4} strokeWidth={W.i} {...D} />
         <rect className="i fill-paper" x={20.3} y={-2.3} width={2.5} height={4.6} rx={0.3} strokeWidth={W.h} {...D} />
         <rect className="i fill-paper" x={22.8} y={-2.3} width={0.32} height={4.6} rx={0.1} strokeWidth={W.i} {...D} />
-        {Array.from({ length: 11 }, (_, i) => (
-          <line key={i} className="i" x1={20.42} y1={-1.95 + i * 0.39} x2={22.7} y2={-1.95 + i * 0.39} strokeWidth={W.c} {...F} />
-        ))}
+        <g clipPath="url(#wind-crown)">
+          <Live id="flutes">
+            {Array.from({ length: 12 }, (_, i) => (
+              <line key={i} className="i" x1={20.42} y1={-2.34 + i * 0.39} x2={22.7} y2={-2.34 + i * 0.39} strokeWidth={W.c} {...F} />
+            ))}
+          </Live>
+        </g>
         <Pivot c={B} />
         <Pivot c={CW} />
       </Up>
@@ -812,6 +1037,16 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
       `M${ez(1.3)} ${sy * 19.3 * k}L${ez(1.5)} ${sy * 19.3 * k}L${ez(2.36)} ${sy * 18.5 * k}L${ez(2.6)} ${sy * 17.5 * k}L${ez(2.88)} ${sy * 16.98 * k}`,
       `M${ez(0.9)} ${sy * lugY(19.4)}Q${ez(0.5)} ${sy * lugY(20.9)} ${ez(-1.5)} ${sy * lugY(22.3)}T${ez(-4.9)} ${sy * L}L${ez(-5.5)} ${sy * (L - 0.5)}L${ez(-5.6)} ${sy * R * 0.955}`,
     ].join('');
+  // once drawn, the hands leave ten past ten for the hour it actually is, and keep it
+  const to = useRef(follower()).current;
+  const svgRef = useLive((m, _sec, e) => {
+    const n = trainAt(clockNow());
+    m.spin('hour', to('hour', n.hour, -hourDeg * DEG, e), [0, 0]);
+    m.spin('minute', to('minute', n.minute, -minDeg * DEG, e), [0, 0]);
+    m.spin('seconds', to('seconds', n.second, -219 * DEG, e), [0, 0]);
+    m.spin('small', to('small', n.second, -218 * DEG, e), [0, -8.6 * k]);
+    m.spin('gmt', to('gmt', n.hour / 2 - 1.9, -261 * DEG, e), [0, 0]);
+  });
   const edges = [-5.6, -4.7, 0.6, 1.3, 2.36, 2.88]
     .map((z) => {
       const y = z <= -5.6 ? 18.5 * k : z <= 0.6 ? R : z <= 1.3 ? 18.9 * k : z <= 2.36 ? 18.5 * k : 16.98 * k;
@@ -819,7 +1054,7 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
     })
     .join('');
   return (
-    <PlateSvg viewBox={`${-R - 9} ${-L - 9.5} ${R * 2 + 38} ${L * 2 + 18}`} label={`Plan and side elevation of the ${spec.name}, with its dial, hands and principal dimensions.`}>
+    <PlateSvg svgRef={svgRef} viewBox={`${-R - 9} ${-L - 9.5} ${R * 2 + 38} ${L * 2 + 18}`} label={`Plan and side elevation of the ${spec.name}, with its dial, hands and principal dimensions.`}>
       <Up>
         {/* construction */}
         <line className="c" x1={-R - 7} y1={0} x2={ex + T} y2={0} strokeWidth={0.09} {...D} />
@@ -871,7 +1106,9 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
               const a = (i / 12) * TAU;
               return <line key={i} className="i" x1={Math.cos(a) * 3.15 * k} y1={-8.6 * k + Math.sin(a) * 3.15 * k} x2={Math.cos(a) * 3.96 * k} y2={-8.6 * k + Math.sin(a) * 3.96 * k} strokeWidth={0.07} {...F} />;
             })}
-            <line className="s" x1={0} y1={(-8.6 + 1.25) * k} x2={0} y2={(-8.6 - 3.62) * k} strokeWidth={0.12} transform={`rotate(-38 0 ${-8.6 * k})`} {...D} />
+            <Live id="small">
+              <line className="s" x1={0} y1={(-8.6 + 1.25) * k} x2={0} y2={(-8.6 - 3.62) * k} strokeWidth={0.12} transform={`rotate(-38 0 ${-8.6 * k})`} {...D} />
+            </Live>
             <circle className="fill-s" cx={0} cy={-8.6 * k} r={0.34 * k} {...F} />
           </g>
         )}
@@ -930,12 +1167,22 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
         )}
         {/* hands, in red chalk, at eight minutes past ten */}
         {spec.gmtHand && (
-          <path className="s" d={hand([[-0.16, -1.4], [0.16, -1.4], [0.16, 11.1], [0.95, 11.1], [0, 13.4], [-0.95, 11.1], [-0.16, 11.1]], 261)} strokeWidth={0.1} {...D} />
+          <Live id="gmt">
+            <path className="s" d={hand([[-0.16, -1.4], [0.16, -1.4], [0.16, 11.1], [0.95, 11.1], [0, 13.4], [-0.95, 11.1], [-0.16, 11.1]], 261)} strokeWidth={0.1} {...D} />
+          </Live>
         )}
-        <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 9.9 : 9.6, 1.02), hourDeg)} strokeWidth={0.12} {...D} />
-        <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 14.7 : 14.3, 0.78), minDeg)} strokeWidth={0.12} {...D} />
-        {spec.seconds === 'centre' && <line className="s" x1={at(-4.2, 219)[0]} y1={at(-4.2, 219)[1]} x2={at(15.4, 219)[0]} y2={at(15.4, 219)[1]} strokeWidth={0.09} {...D} />}
-        {spec.seconds === 'centre' && diver && <circle className="s fill-paper" cx={at(10.4, 219)[0]} cy={at(10.4, 219)[1]} r={0.82 * k} strokeWidth={0.09} {...D} />}
+        <Live id="hour">
+          <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 9.9 : 9.6, 1.02), hourDeg)} strokeWidth={0.12} {...D} />
+        </Live>
+        <Live id="minute">
+          <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 14.7 : 14.3, 0.78), minDeg)} strokeWidth={0.12} {...D} />
+        </Live>
+        {spec.seconds === 'centre' && (
+          <Live id="seconds">
+            <line className="s" x1={at(-4.2, 219)[0]} y1={at(-4.2, 219)[1]} x2={at(15.4, 219)[0]} y2={at(15.4, 219)[1]} strokeWidth={0.09} {...D} />
+            {diver && <circle className="s fill-paper" cx={at(10.4, 219)[0]} cy={at(10.4, 219)[1]} r={0.82 * k} strokeWidth={0.09} {...D} />}
+          </Live>
+        )}
         <circle className="s fill-paper" r={0.95 * k} strokeWidth={0.1} {...D} />
         <circle className="fill-s" r={0.3 * k} {...F} />
         {/* elevation, seen from the crown */}
@@ -985,8 +1232,9 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
 export function PlateProportion() {
   const R = 19.5;
   const phi = 1.618;
+  const svgRef = useLive((m, sec) => m.spin('wheel', sec * 1.2 * DEG, [0, 0]), true);
   return (
-    <PlateSvg mode="scrub" viewBox="-66 -66 132 132" label="A proportion study: the case inscribed in a square and a circle.">
+    <PlateSvg svgRef={svgRef} mode="scrub" viewBox="-66 -66 132 132" label="A proportion study: the case inscribed in a square and a circle.">
       <circle className="c" r={R} strokeWidth={0.16} {...D} />
       <circle className="c" r={R * phi} strokeWidth={0.14} {...D} />
       <circle className="c" r={R * phi * phi} strokeWidth={0.14} {...D} />
@@ -994,7 +1242,9 @@ export function PlateProportion() {
       <rect className="c" x={-R * phi * phi} y={-R * phi * phi} width={R * phi * phi * 2} height={R * phi * phi * 2} strokeWidth={0.14} {...D} />
       <path className="c" d={`M${-R * phi * phi} ${-R * phi * phi}L${R * phi * phi} ${R * phi * phi}M${R * phi * phi} ${-R * phi * phi}L${-R * phi * phi} ${R * phi * phi}`} strokeWidth={0.12} {...D} />
       <path className="c" d={`M-66 0H66M0 -66V66`} strokeWidth={0.12} {...D} />
-      <path className="c" d={ptsToPath(gearOutline({ N: 48, m: 0.58 }), true)} strokeWidth={0.14} {...D} />
+      <Live id="wheel">
+        <path className="c" d={ptsToPath(gearOutline({ N: 48, m: 0.58 }), true)} strokeWidth={0.14} {...D} />
+      </Live>
       {Array.from({ length: 12 }, (_, i) => {
         const a = (i / 12) * TAU;
         return <line key={i} className="c" x1={Math.cos(a) * R * phi} y1={Math.sin(a) * R * phi} x2={Math.cos(a) * R * phi * phi} y2={Math.sin(a) * R * phi * phi} strokeWidth={0.1} {...D} />;

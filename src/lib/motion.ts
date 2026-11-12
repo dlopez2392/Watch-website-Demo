@@ -75,6 +75,8 @@ export function initPlates(root: ParentNode = document): () => void {
     const each = Math.max(0.9, total * 0.55);
     tl.to(strokes, { strokeDashoffset: 0, duration: each, ease: 'power2.inOut', stagger: { amount: total - each * 0.4 } }, 0);
     if (fades.length) tl.to(fades, { opacity: 1, duration: 1.2, ease: 'power1.out', stagger: { amount: 0.8 } }, scrub ? 0.5 : total * 0.45);
+    // drawn to the last line: from here a plate that can move is free to
+    if (!scrub) tl.eventCallback('onComplete', () => svg.setAttribute('data-drawn', 'true'));
     made.push(tl);
   }
   return () => made.forEach((t) => {
