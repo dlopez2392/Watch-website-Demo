@@ -23,12 +23,16 @@ export default function Collezione() {
     window.dispatchEvent(new CustomEvent('valdarno:enquire', { detail: id }));
     scrollToId('riserva');
   };
+  const jump = (id: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    scrollToId(`watch-${id}`);
+  };
   return (
     <section className="section collezione" id="collezione" aria-labelledby="collezione-h">
       <div className="wrap">
         <header className="section-head">
           <p className="kicker" data-reveal>
-            <span className="numeral">III</span>
+            <span className="numeral">II</span>
             <span className="label">La Collezione</span>
           </p>
           <h2 className="display" id="collezione-h" data-reveal style={{ ['--i' as string]: 1 }}>
@@ -38,6 +42,21 @@ export default function Collezione() {
             Each began as a page in the same notebook, and each is built at a bench on the south bank of the Arno.
           </p>
         </header>
+
+        <nav className="watch-index" aria-label="The four watches">
+          {WATCHES.map((w, i) => (
+            <a key={w.id} href={`#watch-${w.id}`} onClick={jump(w.id)} data-reveal style={{ ['--i' as string]: i }}>
+              <span className="watch-index-img">
+                <img src={`/img/${w.id}-900.webp`} width={900} height={1200} alt="" decoding="async" />
+              </span>
+              <span className="watch-index-text">
+                <span className="numeral">{w.numeral}</span>
+                <span className="watch-index-name">{w.name}</span>
+                <span className="label">{w.price}</span>
+              </span>
+            </a>
+          ))}
+        </nav>
 
         <div className="watches">
           {WATCHES.map((w, i) => (
@@ -58,7 +77,7 @@ export default function Collezione() {
                     alt={ALT[w.id]}
                   />
                   <figcaption className="hand">
-                    tav. {w.numeral}, dal vero
+                    fot. {w.numeral}, dal vero
                   </figcaption>
                 </figure>
                 <p className="watch-numeral" aria-hidden="true">

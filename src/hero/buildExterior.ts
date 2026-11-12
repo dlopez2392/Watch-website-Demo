@@ -11,7 +11,7 @@ export const CASE = {
   r: 19.5,
   bottom: -5.6,
   top: 1.3,
-  backBottom: -7.2,
+  backBottom: -6.98,
   stemZ: -1.2,
   dialTop: 0.4,
   dialR: 16.3,
@@ -88,7 +88,8 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
   /* ---------------- crystal ---------------- */
   {
     const b = part(ctx, 'crystal', [0, 0, 47], [9.5, 6, 3.4]);
-    const h = diver ? 0.4 : 0.95;
+    // from the caseback to the top of the dome the Codice stands 10.5 mm
+    const h = diver ? 0.4 : 0.6;
     const z0 = diver ? 3.12 : 2.92;
     const a = 16.4;
     const rho = (a * a + h * h) / (2 * h);
@@ -387,10 +388,10 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       new THREE.Vector2(18.4, 1.08),
       new THREE.Vector2(20.6, 0.3),
       new THREE.Vector2(22.3, -1.5),
-      new THREE.Vector2(23.4, -3.6),
-      new THREE.Vector2(23.62, -4.9),
+      new THREE.Vector2(23.2, -3.6),
+      new THREE.Vector2(23.4, -4.9),
     ]);
-    lug.lineTo(23.1, CASE.bottom + 0.1);
+    lug.lineTo(22.9, CASE.bottom + 0.1);
     lug.lineTo(14.4, CASE.bottom);
     const lugGeo = () => {
       const g = new THREE.ExtrudeGeometry(lug, { depth: 1.74, bevelEnabled: true, bevelSize: 0.28, bevelThickness: 0.28, bevelOffset: -0.28, bevelSegments: 1, curveSegments: 22 });
@@ -398,8 +399,9 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       g.applyMatrix4(SIDE_PROFILE);
       return g;
     };
-    const a = lugGeo().translate(10.22, 0, 0);
-    const c = lugGeo().translate(-12.52, 0, 0);
+    // 20 mm between the lugs, and room for the strap to turn
+    const a = lugGeo().translate(10.05, 0, 0);
+    const c = lugGeo().translate(-12.35, 0, 0);
     const lugs = [a, c, a.clone().rotateZ(Math.PI), c.clone().rotateZ(Math.PI)];
     const bars = [1, -1].map((s) => {
       const g = new THREE.CylinderGeometry(0.55, 0.55, 20.4, 12);

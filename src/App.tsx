@@ -42,14 +42,14 @@ export default function App() {
 
   return (
     <>
-      <a className="skip" href="#movimento">
-        Skip to the movement
+      <a className="skip" href="#collezione">
+        Skip to the collection
       </a>
       <Nav />
       <main>
         <Hero />
-        <Movimento />
         <Collezione />
+        <Movimento />
         <Bottega />
         <Storia />
         <Enquire />

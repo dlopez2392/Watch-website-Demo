@@ -32,8 +32,8 @@ Node 20 or newer. No environment variables, no network calls at runtime, fonts a
 | `src/lib/calibre.ts` | The Calibro V.31 as numbers: pivot positions, tooth counts, modules, heights. The single source of truth. |
 | `src/lib/watches.ts` | The four watches of the collection as one parametric description each. |
 | `src/hero/` | The WebGL hero: part builders, the ink-to-metal material, lighting, depth of field, the scene controller. |
-| `src/plates/plates.tsx` | The SVG plates. Drawn from `calibre.ts`, so the drawing and the 3D object agree tooth for tooth. |
-| `src/sections/` | The page: hero overlay, Il Movimento, La Collezione, La Bottega, Storia, Riserva, footer. |
+| `src/plates/plates.tsx` | The SVG plates. Drawn from `calibre.ts` and `watches.ts`, so the drawing and the 3D object agree tooth for tooth. `/?plates` shows them all on one sheet. |
+| `src/sections/` | The page: hero overlay, La Collezione, Il Movimento, La Bottega, Storia, Riserva, footer. |
 | `src/studio/Studio.tsx` | The studio. The site photographs itself with it (see below). |
 | `scripts/` | Asset pipeline: studio renders, Higgsfield photographs and films, media optimisation, screenshots. |
 
@@ -78,11 +78,12 @@ the calibre from the parametric model; `scripts/hf-photo.mjs` uploads that frame
 image-edit model (Marketing Studio Image, Sunburst) to make a photograph of it. The render fixes the
 design, every letter on the dial and the camera; the model supplies light and material. That is why
 the catalogue plates, the details beside them and the portrait of the Calibro V.31 show exactly the
-watch the hero takes apart, engraving included. The film of the calibre is Kling image-to-video,
-started from that portrait.
+watch the hero takes apart, engraving included. The photograph at the bench is made the same way
+from the portrait of the calibre, and both films of the movement are Kling image-to-video started
+from those two frames.
 
-**The workshop is imagined.** The benches, the hands at work, the notebook sheets and the parchment
-under the hero are text-to-image (Soul), with two short Kling clips. One prompt suffix carries the
+**The workshop is imagined.** The room, the hands polishing and bluing, the notebook sheets and the
+parchment under the hero are text-to-image (Soul), with one short Kling clip. One prompt suffix carries the
 look across all of them: north window light, parchment and sepia, midnight shadows, shallow focus.
 
 ```bash
@@ -104,6 +105,18 @@ and turn each five-second clip into a forward-and-back loop that closes without 
 environment the credentials are supplied by the proxy; elsewhere set `HF_AUTH="Key <id>:<secret>"`.
 
 Stills come back at about two thousand pixels on the long side, which is the ceiling for the plates.
+
+## The plates
+
+Seven plates and four case drawings, all generated from the numbers in `calibre.ts` and `watches.ts`.
+What a plate states, the model does: 80 teeth on a pinion of 10 turn the barrel once in eight hours;
+64:8 and 60:8 make the fourth wheel turn once a minute; 72:6 and fifteen escape teeth give 21,600
+beats an hour; a mainspring of eighteen and a half turns measures the 420 mm the copy quotes; the
+calibre is 31.0 mm across and 5.9 mm high, as dimensioned; nineteen jewels are counted out under the
+section they are drawn in. Each case drawing shows that watch's own dial, hands, bezel and profile.
+
+- `/?plates` (all of them, fully drawn)
+- `/?plates=escapement` (one alone: `train`, `escapement`, `balance`, `winding`, `section`, `finish`, or a watch id)
 
 ## The studio
 

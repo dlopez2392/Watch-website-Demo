@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { scrollToId } from '../lib/motion';
 
 const LINKS: [string, string, string][] = [
-  ['movimento', 'Il Movimento', 'II'],
-  ['collezione', 'La Collezione', 'III'],
+  ['collezione', 'La Collezione', 'II'],
+  ['movimento', 'Il Movimento', 'III'],
   ['bottega', 'La Bottega', 'IV'],
   ['storia', 'Storia', 'V'],
 ];
@@ -12,6 +12,7 @@ export default function Nav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [dark, setDark] = useState(false);
+  const [here, setHere] = useState('');
   const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -32,9 +33,23 @@ export default function Nav() {
       { rootMargin: '-38px 0px -94% 0px' },
     );
     darks.forEach((d) => io.observe(d));
+    // which section the reader is in: the one crossing the middle of the window
+    const inView = new Map<string, boolean>();
+    const where = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) inView.set(e.target.id, e.isIntersecting);
+        setHere([...LINKS.map(([id]) => id), 'riserva'].find((id) => inView.get(id)) ?? '');
+      },
+      { rootMargin: '-45% 0px -54% 0px' },
+    );
+    for (const id of [...LINKS.map(([l]) => l), 'riserva']) {
+      const el = document.getElementById(id);
+      if (el) where.observe(el);
+    }
     return () => {
       window.removeEventListener('scroll', onScroll);
       io.disconnect();
+      where.disconnect();
     };
   }, []);
 
@@ -74,14 +89,14 @@ export default function Nav() {
         <ul>
           {LINKS.map(([id, label]) => (
             <li key={id}>
-              <a href={`#${id}`} onClick={go(id)}>
+              <a href={`#${id}`} onClick={go(id)} aria-current={here === id ? 'true' : undefined}>
                 {label}
               </a>
             </li>
           ))}
         </ul>
       </nav>
-      <a className="nav-reserve" href="#riserva" onClick={go('riserva')}>
+      <a className="nav-reserve" href="#riserva" onClick={go('riserva')} aria-current={here === 'riserva' ? 'true' : undefined}>
         Riserva
       </a>
       <button

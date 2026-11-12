@@ -1,6 +1,7 @@
 .hero {
   position: relative;
-  height: 580vh;
+  /* long enough to walk twenty-four parts, short enough that the collection is never far */
+  height: 440vh;
   --s: 0;
 }
 .hero[data-mode='static'] {
@@ -232,11 +233,29 @@
 .hero-scroll {
   position: absolute;
   left: var(--gutter);
-  bottom: clamp(1.6rem, 5vh, 3.2rem);
+  bottom: clamp(2.7rem, 7vh, 4.4rem);
   display: flex;
   align-items: center;
   gap: 1rem;
   opacity: clamp(0, calc((0.6 - var(--s)) * 20), 1);
+}
+.hero-skip {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(0.5rem, 2vh, 1.3rem);
+  padding: 0.3rem 0;
+  color: var(--sepia);
+  border-bottom: 1px solid transparent;
+  opacity: clamp(0, calc((0.84 - var(--s)) * 20), 1);
+  transition: color 0.4s var(--ease), border-color 0.4s var(--ease);
+}
+.hero-skip:hover,
+.hero-skip:focus-visible {
+  color: var(--sanguine);
+  border-bottom-color: currentColor;
+}
+.hero[data-phase='closed'] .hero-skip {
+  pointer-events: none;
 }
 .hero-scroll i {
   display: block;
@@ -563,7 +582,7 @@
 
 @media (max-width: 760px) {
   .hero {
-    height: 460vh;
+    height: 370vh;
   }
   .hero-copy {
     top: 5.4rem;
@@ -607,7 +626,8 @@
   .hero-hint {
     margin-top: 0.4rem;
   }
-  .hero-scroll {
+  .hero-scroll,
+  .hero-skip {
     display: none;
   }
   .hero-pin::before {
@@ -664,6 +684,11 @@
     -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
     border: 1px solid var(--rule);
+  }
+  /* in a box the words must arrive with it, not after */
+  .annotation-inner {
+    animation-duration: 0.45s;
+    animation-delay: 0s;
   }
   .annotation-it {
     font-size: 2.1rem;

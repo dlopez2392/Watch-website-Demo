@@ -2,23 +2,32 @@ import type { ReactNode } from 'react';
 import {
   AX,
   BALANCE_R,
+  BANKING,
+  CALIBRE_HEIGHT,
+  COCK_FOOT,
   DEG,
   ESCAPE_R,
   GEAR,
+  HAIRSPRING,
   LV,
+  MAINSPRING,
   PLATE_R,
   PLATE_T,
   TAU,
   add,
   angleTo,
+  barrelBridgeSegs,
+  cockSegs,
   dist,
   escapeOutline,
   gearOutline,
   pitchR,
   polar,
   ptsToPath,
+  segsToPoints,
   spiral,
   trainAt,
+  trainBridgeSegs,
   translatePts,
   type Gear,
   type P2,
@@ -57,14 +66,14 @@ const Up = ({ children }: { children: ReactNode }) => <g transform="scale(1,-1)"
 const Key = ({ at, to, ch, size = 1.5 }: { at: P2; to?: P2; ch: string; size?: number }) => (
   <g {...F}>
     {to && <line className="s" x1={to[0]} y1={-to[1]} x2={at[0]} y2={-at[1]} strokeWidth={W.c} />}
-    <text className="key" x={at[0]} y={-at[1]} fontSize={size} textAnchor="middle" dominantBaseline="central">
+    <text className="key halo" x={at[0]} y={-at[1]} fontSize={size} textAnchor="middle" dominantBaseline="central">
       {ch}
     </text>
   </g>
 );
 
 const Note = ({ at, children, size = 1.05, anchor = 'start', rot = 0 }: { at: P2; children: ReactNode; size?: number; anchor?: 'start' | 'middle' | 'end'; rot?: number }) => (
-  <text {...F} x={at[0]} y={-at[1]} fontSize={size} textAnchor={anchor} transform={rot ? `rotate(${rot} ${at[0]} ${-at[1]})` : undefined}>
+  <text {...F} className="halo" x={at[0]} y={-at[1]} fontSize={size} textAnchor={anchor} transform={rot ? `rotate(${rot} ${at[0]} ${-at[1]})` : undefined}>
     {children}
   </text>
 );
@@ -92,13 +101,81 @@ const Pinion = ({ g, c, phase }: { g: Gear; c: P2; phase: number }) => (
 
 const Pivot = ({ c, r = 0.16 }: { c: P2; r?: number }) => <circle className="fill-s" cx={c[0]} cy={c[1]} r={r} {...F} />;
 
+/** A jewel seen in plan: the stone as a red-chalk ring round its pivot. */
+const Jewel = ({ c, r = 0.5 }: { c: P2; r?: number }) => (
+  <g {...F}>
+    <circle className="s" cx={c[0]} cy={c[1]} r={r} strokeWidth={r * 0.2} />
+    <circle className="fill-s" cx={c[0]} cy={c[1]} r={r * 0.3} />
+  </g>
+);
+
+/** Lines that cannot be drawn in one stroke: outlines of what lies on the far side. */
+const Hidden = ({ pts, w = W.c, dash = '0.42 0.3' }: { pts: P2[]; w?: number; dash?: string }) => (
+  <path className="c" d={ptsToPath(pts)} strokeWidth={w} strokeDasharray={dash} {...F} />
+);
+
+const num = (n: number, d = 1) => n.toFixed(d).replace('.', ',');
+
+/**
+ * A dimension as a draughtsman leaves it, in red chalk: extension lines from the two points, the
+ * dimension line between them at `off` to the left of a→b, and the figure written along it.
+ */
+function Dim({ a, b, off, label, size = 0.6, gap = 0.55 }: { a: P2; b: P2; off: number; label: string; size?: number; gap?: number }) {
+  const dir = angleTo(a, b);
+  const n = polar(1, dir + Math.PI / 2);
+  const sg = Math.sign(off) || 1;
+  const pa: P2 = [a[0] + n[0] * off, a[1] + n[1] * off];
+  const pb: P2 = [b[0] + n[0] * off, b[1] + n[1] * off];
+  const ext = (p: P2, q: P2): string => `M${p[0] + n[0] * sg * size * 0.3} ${p[1] + n[1] * sg * size * 0.3}L${q[0] + n[0] * sg * size * 0.45} ${q[1] + n[1] * sg * size * 0.45}`;
+  const tick = (q: P2) => {
+    const t = polar(size * 0.32, dir + Math.PI / 4);
+    return `M${q[0] - t[0]} ${q[1] - t[1]}L${q[0] + t[0]} ${q[1] + t[1]}`;
+  };
+  const mid: P2 = [(pa[0] + pb[0]) / 2 + n[0] * sg * size * gap, (pa[1] + pb[1]) / 2 + n[1] * sg * size * gap];
+  let deg = (-dir * 180) / Math.PI;
+  if (deg > 90 || deg < -90) deg += 180;
+  return (
+    <g>
+      <g transform="scale(1,-1)">
+        <path className="s" d={`${ext(a, pa)}${ext(b, pb)}`} strokeWidth={size * 0.06} {...F} />
+        <path className="s" d={`M${pa[0]} ${pa[1]}L${pb[0]} ${pb[1]}${tick(pa)}${tick(pb)}`} strokeWidth={size * 0.09} {...D} />
+      </g>
+      <text {...F} className="dim halo" x={mid[0]} y={-mid[1]} fontSize={size} textAnchor="middle" dominantBaseline="central" transform={`rotate(${deg} ${mid[0]} ${-mid[1]})`}>
+        {label}
+      </text>
+    </g>
+  );
+}
+
+/* ------------------------------------------------------------ shared parts */
+
+const PALLET_OUTLINE: P2[] = [
+  [2.78, -0.17], [2.3, -0.17], [2.3, 0.17], [2.78, 0.17], [2.78, 0.5], [2.2, 0.46], [1.85, 0.2], [0.55, 0.22], [0.3, 0.4],
+  [-0.55, 1.05], [-0.86, 1.45], [-1.22, 1.16], [-0.75, 0.5], [-0.62, 0],
+  [-0.75, -0.5], [-1.22, -1.16], [-0.86, -1.45], [-0.55, -1.05], [0.3, -0.4], [0.55, -0.22], [1.85, -0.2], [2.2, -0.46], [2.78, -0.5],
+];
+const rot = (p: P2, a: number): P2 => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)];
+const REST = angleTo(AX.pallet, AX.balance);
+const forkAt = (a: number) => PALLET_OUTLINE.map((p) => add(AX.pallet, rot(p, a)));
+const stoneAt = (sy: number, a: number): P2[] => {
+  const c: P2 = [-1.2, sy * 1.38];
+  const dir = Math.atan2(-sy * 1.3, -2.06);
+  return ([[-0.41, -0.15], [0.41, -0.15], [0.41, 0.15], [-0.41, 0.15]] as P2[]).map((p) => add(AX.pallet, rot(add(c, rot(p, dir)), a)));
+};
+
+const Mainspring = ({ c, phase, w = 0.04 }: { c: P2; phase: number; w?: number }) => (
+  <path className="i" d={ptsToPath(translatePts(spiral(MAINSPRING.r0, MAINSPRING.r1, MAINSPRING.turns, 760, phase), c), false)} strokeWidth={w} {...D} />
+);
+
 /* ------------------------------------------------------------ Tav. II */
 
 export function PlateTrain() {
   const s = TEN_EIGHT;
-  const chain = [AX.barrel, AX.centre, AX.third, AX.fourth, AX.escape];
+  const chain = [AX.barrel, AX.centre, AX.third, AX.fourth, AX.escape, AX.pallet, AX.balance];
+  const lever = REST + 7.5 * DEG;
+  const arm = REST + 70 * DEG;
   return (
-    <PlateSvg viewBox="-20.5 -20.5 41 41" label="Plan of the going train: barrel, centre wheel, third wheel, fourth wheel and escape wheel, drawn in mesh.">
+    <PlateSvg viewBox="-20.5 -20.5 41 41" label="Plan of the going train from the dial side: barrel, centre, third and fourth wheels, escape wheel, lever and balance, drawn in mesh with their tooth counts; the bridges behind are shown in broken line.">
       <Up>
         <circle className="c" r={18.6} strokeWidth={W.c} {...D} />
         <line className="c" x1={-20} y1={0} x2={20} y2={0} strokeWidth={W.c} {...D} />
@@ -110,10 +187,27 @@ export function PlateTrain() {
         })}
         <circle className="i" r={PLATE_R} strokeWidth={W.h} {...D} />
         <circle className="i" r={PLATE_R - 0.45} strokeWidth={W.c} {...D} />
-        {/* furthest from the eye first, so nearer wheels cover them */}
+        {/* what stands behind the wheels: the two bridges and the balance cock */}
+        <Hidden pts={segsToPoints(barrelBridgeSegs())} />
+        <Hidden pts={segsToPoints(trainBridgeSegs())} />
+        <Hidden pts={segsToPoints(cockSegs())} />
+        {/* balance, furthest from the eye */}
+        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={BALANCE_R} strokeWidth={W.i} {...D} />
+        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={4.36} strokeWidth={W.c} {...D} />
+        {[1, -1].map((sg) => {
+          const p0 = add(AX.balance, polar(4.36, arm + (sg > 0 ? 0 : Math.PI)));
+          const p1 = add(AX.balance, polar(0.84, arm + (sg > 0 ? 0 : Math.PI)));
+          return <line key={sg} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.5} strokeLinecap="butt" strokeOpacity={0.28} {...F} />;
+        })}
+        <path className="c" d={ptsToPath(translatePts(spiral(HAIRSPRING.r0, HAIRSPRING.r1, HAIRSPRING.turns, 420, 0.4), AX.balance), false)} strokeWidth={0.03} {...D} />
+        <circle className="i fill-paper" cx={AX.balance[0]} cy={AX.balance[1]} r={0.84} strokeWidth={W.c} {...D} />
+        {/* then the train, furthest first, so nearer wheels cover them */}
         <Wheel g={GEAR.thirdWheel} c={AX.third} phase={s.third} hub={0.72} rim={0.42} spokes={5} />
         <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={W.i} {...D} />
         <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={W.c} {...D} />
+        <path className="i fill-paper" d={ptsToPath(forkAt(lever))} strokeWidth={W.c} {...D} />
+        <path className="fill-s" d={ptsToPath(stoneAt(1, lever))} {...F} />
+        <path className="fill-s" d={ptsToPath(stoneAt(-1, lever))} {...F} />
         <Wheel g={GEAR.centreWheel} c={AX.centre} phase={s.centre} hub={1.0} rim={0.5} spokes={5} />
         <Pinion g={GEAR.thirdPinion} c={AX.third} phase={s.third} />
         <Wheel g={GEAR.fourthWheel} c={AX.fourth} phase={s.fourth} hub={0.7} rim={0.4} spokes={6} />
@@ -121,23 +215,45 @@ export function PlateTrain() {
         <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
         <path className="i fill-paper" d={ptsToPath(translatePts(gearOutline(GEAR.barrel, { phase: s.barrel }), AX.barrel))} strokeWidth={W.i} {...D} />
         <circle className="i" cx={AX.barrel[0]} cy={AX.barrel[1]} r={6.05} strokeWidth={W.c} {...D} />
-        <path className="i" d={ptsToPath(translatePts(spiral(1.35, 5.86, 10.5, 420, s.barrel), AX.barrel), false)} strokeWidth={0.045} {...D} />
+        <Mainspring c={AX.barrel} phase={s.barrel} />
         <circle className="i fill-paper" cx={AX.barrel[0]} cy={AX.barrel[1]} r={1.15} strokeWidth={W.i} {...D} />
         <Pinion g={GEAR.centrePinion} c={AX.centre} phase={s.centre} />
-        {/* the line of centres, in red chalk */}
+        {/* the line of centres, in red chalk, and a jewel at every pivot */}
         <path className="s" d={ptsToPath(chain, false)} strokeWidth={W.s} {...D} />
-        {chain.map((c, i) => (
-          <Pivot key={i} c={c} />
-        ))}
+        <Pivot c={AX.barrel} />
+        <Jewel c={AX.centre} r={0.42} />
+        <Jewel c={AX.third} r={0.36} />
+        <Jewel c={AX.fourth} r={0.36} />
+        <Jewel c={AX.escape} r={0.3} />
+        <Jewel c={AX.pallet} r={0.26} />
+        <Jewel c={AX.balance} r={0.38} />
       </Up>
-      <Key ch="a" at={[14.6, 14.4]} to={add(AX.barrel, polar(6.9, 45 * DEG))} />
-      <Key ch="b" at={[-9.4, 9.6]} to={add(AX.centre, polar(5.2, 135 * DEG))} />
-      <Key ch="c" at={[11.6, -8.2]} to={add(AX.third, polar(3.95, -20 * DEG))} />
-      <Key ch="d" at={[4.6, -16.2]} to={add(AX.fourth, polar(4.0, -60 * DEG))} />
-      <Key ch="e" at={[-12.4, -12.6]} to={add(AX.escape, polar(2.4, 215 * DEG))} />
+      <Key ch="a" at={[14.9, 14.5]} to={add(AX.barrel, polar(6.9, 45 * DEG))} />
+      <Key ch="b" at={[-9.4, 9.9]} to={add(AX.centre, polar(5.2, 135 * DEG))} />
+      <Key ch="c" at={[12.4, -7.6]} to={add(AX.third, polar(3.95, -15 * DEG))} />
+      <Key ch="d" at={[5.2, -16.4]} to={add(AX.fourth, polar(4.0, -60 * DEG))} />
+      <Key ch="e" at={[-5.0, -16.6]} to={add(AX.escape, polar(2.4, 250 * DEG))} />
+      <Note at={add(AX.barrel, [0, 7.5])} anchor="middle" size={0.82}>
+        z 80
+      </Note>
+      <Note at={[-5.3, 3.3]} anchor="end" size={0.82}>
+        z 64
+      </Note>
+      <Note at={[7.1, -4.2]} size={0.82}>
+        z 60
+      </Note>
+      <Note at={[1.0, -13.5]} size={0.82}>
+        z 72
+      </Note>
+      <Note at={[-6.9, -10.4]} anchor="end" size={0.82}>
+        z 15
+      </Note>
       <Note at={[-19.6, 18.6]}>dal lato del quadrante</Note>
+      <Note at={[-19.6, -19.5]} size={0.92}>
+        64 : 8 × 60 : 8 = 60 : 1
+      </Note>
       <Note at={[19.6, -19.5]} anchor="end" size={0.95}>
-        ∅ 31,0
+        ∅ {num(PLATE_R * 2)}
       </Note>
     </PlateSvg>
   );
@@ -145,68 +261,74 @@ export function PlateTrain() {
 
 /* ------------------------------------------------------------ Tav. III */
 
-const PALLET_OUTLINE: P2[] = [
-  [2.78, -0.17], [2.3, -0.17], [2.3, 0.17], [2.78, 0.17], [2.78, 0.5], [2.2, 0.46], [1.85, 0.2], [0.55, 0.22], [0.3, 0.4],
-  [-0.55, 1.05], [-0.86, 1.45], [-1.22, 1.16], [-0.75, 0.5], [-0.62, 0],
-  [-0.75, -0.5], [-1.22, -1.16], [-0.86, -1.45], [-0.55, -1.05], [0.3, -0.4], [0.55, -0.22], [1.85, -0.2], [2.2, -0.46], [2.78, -0.5],
-];
-const rot = (p: P2, a: number): P2 => [p[0] * Math.cos(a) - p[1] * Math.sin(a), p[0] * Math.sin(a) + p[1] * Math.cos(a)];
-
 export function PlateEscapement() {
   const s = TEN_EIGHT;
-  const rest = angleTo(AX.pallet, AX.balance);
-  const a = rest + 7.5 * DEG;
-  const fork = PALLET_OUTLINE.map((p) => add(AX.pallet, rot(p, a)));
-  const stone = (sy: number): P2[] => {
-    const c: P2 = [-1.2, sy * 1.38];
-    const dir = Math.atan2(-sy * 1.3, -2.06);
-    return ([[-0.41, -0.15], [0.41, -0.15], [0.41, 0.15], [-0.41, 0.15]] as P2[]).map((p) => add(AX.pallet, rot(add(c, rot(p, dir)), a)));
-  };
+  const a = REST + 7.5 * DEG;
   const pin = add(AX.balance, polar(0.72, angleTo(AX.balance, AX.pallet) + 18 * DEG));
-  const swing = (sign: number) => add(AX.pallet, polar(4.6, rest + sign * 7.5 * DEG));
-  const cx = -6.6;
-  const cy = -5.0;
-  const h = 7.4;
+  const swing = (sign: number, r: number) => add(AX.pallet, polar(r, REST + sign * 7.5 * DEG));
+  const cx = -6.15;
+  const cy = -5.75;
+  const h = 6.05;
+  const ax = polar(1, angleTo(AX.escape, AX.balance));
   return (
-    <PlateSvg viewBox={`${cx - h} ${-cy - h} ${h * 2} ${h * 2}`} label="The Swiss lever escapement: escape wheel, pallet fork with its two ruby pallets, and the roller of the balance.">
+    <PlateSvg viewBox={`${cx - h} ${-cy - h} ${h * 2} ${h * 2}`} label="The Swiss lever escapement at five times life size: the fifteen-tooth escape wheel, the lever with its two ruby pallets between the banking pins, and the roller of the balance with its impulse pin.">
+      <defs>
+        <clipPath id="esc-clip">
+          <rect x={cx - h + 0.35} y={-cy - h + 0.35} width={h * 2 - 0.7} height={h * 2 - 0.7} />
+        </clipPath>
+      </defs>
       <Up>
-        <circle className="c" cx={AX.escape[0]} cy={AX.escape[1]} r={ESCAPE_R} strokeWidth={0.03} {...D} />
-        <line className="c" x1={AX.escape[0] - (AX.balance[0] - AX.escape[0]) * 0.6} y1={AX.escape[1] - (AX.balance[1] - AX.escape[1]) * 0.6} x2={AX.balance[0] + (AX.balance[0] - AX.escape[0]) * 0.5} y2={AX.balance[1] + (AX.balance[1] - AX.escape[1]) * 0.5} strokeWidth={0.03} {...D} />
-        {/* balance, only as much as the plate needs */}
-        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={BALANCE_R} strokeWidth={0.05} {...D} />
-        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={4.36} strokeWidth={0.03} {...D} />
-        <circle className="i fill-paper" cx={AX.balance[0]} cy={AX.balance[1]} r={0.84} strokeWidth={0.05} {...D} />
-        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={0.17} strokeWidth={0.04} {...D} />
+        {/* the line of centres */}
+        <line className="c" x1={AX.escape[0] - ax[0] * 4.2} y1={AX.escape[1] - ax[1] * 4.2} x2={AX.balance[0] + ax[0] * 3.4} y2={AX.balance[1] + ax[1] * 3.4} strokeWidth={0.03} {...D} />
+        {/* balance: its rim passes over the lever, so only an arc of it is given */}
+        <g clipPath="url(#esc-clip)">
+          <circle className="c" cx={AX.balance[0]} cy={AX.balance[1]} r={BALANCE_R} strokeWidth={0.05} {...D} />
+          <circle className="c" cx={AX.balance[0]} cy={AX.balance[1]} r={4.36} strokeWidth={0.03} {...D} />
+        </g>
+        <circle className="i fill-paper" cx={AX.balance[0]} cy={AX.balance[1]} r={0.84} strokeWidth={0.055} {...D} />
+        <circle className="i" cx={AX.balance[0]} cy={AX.balance[1]} r={0.5} strokeWidth={0.03} {...D} />
         {/* escape wheel */}
-        <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={0.05} {...D} />
-        <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={0.03} {...D} />
+        <circle className="c" cx={AX.escape[0]} cy={AX.escape[1]} r={ESCAPE_R} strokeWidth={0.03} {...D} />
+        <path className="i fill-paper" d={ptsToPath(translatePts(escapeOutline(s.escape), AX.escape))} strokeWidth={0.055} {...D} />
+        <circle className="i" cx={AX.escape[0]} cy={AX.escape[1]} r={1.42} strokeWidth={0.035} {...D} />
         {[0, 1, 2].map((k) => {
           const an = s.escape + 0.2 + (k / 3) * TAU;
           const p0 = add(AX.escape, polar(0.5, an));
           const p1 = add(AX.escape, polar(1.42, an));
-          return <line key={k} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.05} {...D} />;
+          return <line key={k} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.26} strokeLinecap="butt" strokeOpacity={0.3} {...F} />;
         })}
         <circle className="i fill-paper" cx={AX.escape[0]} cy={AX.escape[1]} r={0.5} strokeWidth={0.05} {...D} />
-        {/* the fork and its stones */}
-        <path className="i fill-paper" d={ptsToPath(fork)} strokeWidth={0.055} {...D} />
-        <path className="fill-s" d={ptsToPath(stone(1))} {...F} />
-        <path className="fill-s" d={ptsToPath(stone(-1))} {...F} />
+        <Pinion g={GEAR.escapePinion} c={AX.escape} phase={s.escape} />
+        {/* the swing of the lever, and the pins that bound it */}
+        <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(1, 5.5)[0]} y2={swing(1, 5.5)[1]} strokeWidth={0.03} {...D} />
+        <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(-1, 5.5)[0]} y2={swing(-1, 5.5)[1]} strokeWidth={0.03} {...D} />
+        <path className="s" d={ptsToPath([-7.5, -3.75, 0, 3.75, 7.5].map((d) => add(AX.pallet, polar(5.2, REST + d * DEG))), false)} strokeWidth={0.035} {...D} />
+        <path className="c" d={ptsToPath(forkAt(REST - 7.5 * DEG))} strokeWidth={0.035} strokeDasharray="0.16 0.12" {...F} />
+        {/* the lever and its stones */}
+        <path className="i fill-paper" d={ptsToPath(forkAt(a))} strokeWidth={0.06} {...D} />
+        <path className="fill-s" d={ptsToPath(stoneAt(1, a))} {...F} />
+        <path className="fill-s" d={ptsToPath(stoneAt(-1, a))} {...F} />
+        {BANKING.map((p, i) => (
+          <circle key={i} className="i fill-paper" cx={p[0]} cy={p[1]} r={0.11} strokeWidth={0.04} {...D} />
+        ))}
         <circle className="fill-s" cx={pin[0]} cy={pin[1]} r={0.13} {...F} />
-        <Pivot c={AX.pallet} r={0.1} />
-        <Pivot c={AX.escape} r={0.1} />
-        {/* the swing of the lever */}
-        <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(1)[0]} y2={swing(1)[1]} strokeWidth={0.03} {...D} />
-        <line className="s" x1={AX.pallet[0]} y1={AX.pallet[1]} x2={swing(-1)[0]} y2={swing(-1)[1]} strokeWidth={0.03} {...D} />
-        <path className="s" d={ptsToPath([-7.5, -3.75, 0, 3.75, 7.5].map((d) => add(AX.pallet, polar(4.2, rest + d * DEG))), false)} strokeWidth={0.035} {...D} />
+        <Jewel c={AX.pallet} r={0.2} />
+        <Jewel c={AX.escape} r={0.22} />
+        <Jewel c={AX.balance} r={0.24} />
       </Up>
-      <Key ch="a" size={0.62} at={[-1.6, -9.4]} to={add(AX.escape, polar(2.3, -45 * DEG))} />
-      <Key ch="b" size={0.62} at={[-4.2, -2.2]} to={add(AX.pallet, polar(0.9, 80 * DEG))} />
-      <Key ch="c" size={0.62} at={[-9.6, -9.6]} to={stone(1)[0]} />
-      <Key ch="d" size={0.62} at={[-12.2, -0.4]} to={add(AX.balance, polar(0.9, 140 * DEG))} />
-      <Note at={add(AX.pallet, polar(5.0, rest + 2 * DEG))} size={0.5}>
+      <Dim a={add(AX.escape, [-ESCAPE_R, 0])} b={add(AX.escape, [ESCAPE_R, 0])} off={-3.25} label={`∅ ${num(ESCAPE_R * 2, 2)}`} size={0.44} />
+      <Dim a={AX.pallet} b={AX.escape} off={3.3} label={num(dist(AX.pallet, AX.escape), 2)} size={0.44} />
+      <Key ch="a" size={0.62} at={[-0.7, -8.6]} to={add(AX.escape, polar(2.2, -20 * DEG))} />
+      <Key ch="b" size={0.62} at={[-10.9, -7.2]} to={add(AX.pallet, rot([1.2, -0.2], a))} />
+      <Key ch="c" size={0.62} at={[-8.6, -10.3]} to={stoneAt(-1, a)[1]} />
+      <Key ch="d" size={0.62} at={[-6.6, -0.75]} to={add(AX.balance, polar(0.9, 50 * DEG))} />
+      <Note at={add(AX.pallet, polar(6.0, REST))} size={0.46} anchor="middle">
         15°
       </Note>
-      <Note at={[cx - h + 0.5, cy + h - 0.9]} size={0.46}>
+      <Note at={add(AX.escape, polar(3.0, -62 * DEG))} size={0.46}>
+        z 15
+      </Note>
+      <Note at={[cx + h - 0.55, cy + h - 0.95]} size={0.46} anchor="end">
         scala 5 : 1
       </Note>
     </PlateSvg>
@@ -216,17 +338,33 @@ export function PlateEscapement() {
 /* ------------------------------------------------------------ Tav. IV */
 
 export function PlateBalance() {
-  const coil = spiral(0.58, 3.36, 11.5, 520, 0.4);
+  const coil = spiral(HAIRSPRING.r0, HAIRSPRING.r1, HAIRSPRING.turns, 620, 0.4);
+  const stud = coil[coil.length - 1];
   const arm = 22 * DEG;
-  const arc = Array.from({ length: 61 }, (_, i) => polar(6.25, (90 - 135 + (270 * i) / 60) * DEG));
+  const arc = Array.from({ length: 61 }, (_, i) => polar(6.3, (90 - 135 + (270 * i) / 60) * DEG));
   const head = (at: P2, dir: number): P2[] => [add(at, polar(0.42, dir + 2.65)), at, add(at, polar(0.42, dir - 2.65))];
+  // the cock runs from its foot to the balance: seen here from the balance, it leaves the sheet
+  const toFoot = angleTo(AX.balance, COCK_FOOT);
+  const nrm = toFoot + Math.PI / 2;
+  const curbAt = Math.atan2(stud[1], stud[0]) - 34 * DEG;
+  const curb = polar(HAIRSPRING.r1 - 0.02, curbAt);
+  const pinAt = polar(0.72, -68 * DEG);
+  const V = 8.3;
   return (
-    <PlateSvg viewBox="-7.6 -7.6 15.2 15.2" label="The balance wheel with its fourteen timing screws and the hairspring of eleven and a half turns.">
+    <PlateSvg viewBox={`${-V} ${-V} ${V * 2} ${V * 2}`} label="The balance at five times life size: a ten-millimetre wheel with fourteen timing screws on its rim, the hairspring of eleven and a half turns pinned at its stud, the regulator pins, and the roller with its impulse pin beneath.">
       <Up>
-        <line className="c" x1={-7.4} y1={0} x2={7.4} y2={0} strokeWidth={0.03} {...D} />
-        <line className="c" x1={0} y1={-7.4} x2={0} y2={7.4} strokeWidth={0.03} {...D} />
+        <line className="c" x1={-V + 0.3} y1={0} x2={V - 0.3} y2={0} strokeWidth={0.03} {...D} />
+        <line className="c" x1={0} y1={-V + 0.3} x2={0} y2={V - 0.3} strokeWidth={0.03} {...D} />
         <circle className="c" r={5.72} strokeWidth={0.03} {...D} />
-        <circle className="i fill-paper" r={BALANCE_R} strokeWidth={0.06} {...D} />
+        {/* the cock above, in broken line */}
+        <path
+          className="c"
+          d={`M${polar(1.55, nrm)[0] + polar(7.4, toFoot)[0]} ${polar(1.55, nrm)[1] + polar(7.4, toFoot)[1]}L${polar(1.55, nrm)[0]} ${polar(1.55, nrm)[1]}A1.55 1.55 0 0 1 ${polar(1.55, nrm + Math.PI)[0]} ${polar(1.55, nrm + Math.PI)[1]}L${polar(1.55, nrm + Math.PI)[0] + polar(7.4, toFoot)[0]} ${polar(1.55, nrm + Math.PI)[1] + polar(7.4, toFoot)[1]}`}
+          strokeWidth={0.04}
+          strokeDasharray="0.2 0.14"
+          {...F}
+        />
+        <circle className="i fill-paper" r={BALANCE_R} strokeWidth={0.065} {...D} />
         <circle className="i" r={4.36} strokeWidth={0.05} {...D} />
         {[1, -1].map((sg) => (
           <g key={sg}>
@@ -234,28 +372,45 @@ export function PlateBalance() {
             <line className="i" x1={Math.cos(arm) * 4.36 * sg} y1={Math.sin(arm) * 4.36 * sg - 0.36} x2={-Math.cos(arm) * 0.6 * sg} y2={-Math.sin(arm) * 0.6 * sg - 0.36} strokeWidth={0.05} {...D} />
           </g>
         ))}
+        {/* fourteen screws: a head standing off the rim, its slot, and the thread through it */}
         {Array.from({ length: 14 }, (_, i) => {
-          const a = (i / 14) * TAU + 0.12;
-          const p0 = polar(BALANCE_R, a);
-          const p1 = polar(BALANCE_R + 0.5, a);
-          return <line key={i} className="i" x1={p0[0]} y1={p0[1]} x2={p1[0]} y2={p1[1]} strokeWidth={0.36} strokeLinecap="butt" {...F} />;
+          const deg = ((i / 14) * TAU + 0.12) / DEG;
+          return (
+            <g key={i} transform={`rotate(${deg})`}>
+              <line className="i" x1={4.36} y1={0} x2={BALANCE_R} y2={0} strokeWidth={0.03} strokeDasharray="0.08 0.06" {...F} />
+              <rect className="i fill-paper" x={BALANCE_R} y={-0.21} width={0.5} height={0.42} rx={0.06} strokeWidth={0.045} {...D} />
+              <line className="i" x1={BALANCE_R + 0.5} y1={0} x2={BALANCE_R + 0.28} y2={0} strokeWidth={0.05} {...F} />
+            </g>
+          );
         })}
+        {/* roller and impulse pin, beneath */}
+        <circle className="c" r={0.84} strokeWidth={0.035} strokeDasharray="0.12 0.09" {...F} />
+        <circle className="fill-s" cx={pinAt[0]} cy={pinAt[1]} r={0.13} {...F} />
         <path className="i" d={ptsToPath(coil, false)} strokeWidth={0.04} {...D} />
         <circle className="i fill-paper" r={0.52} strokeWidth={0.05} {...D} />
         <circle className="fill-s" r={0.15} {...F} />
-        <circle className="fill-s" cx={coil[coil.length - 1][0]} cy={coil[coil.length - 1][1]} r={0.2} {...F} />
+        {/* stud, and the two regulator pins that set the working length of the spring */}
+        <rect className="i fill-paper" x={stud[0] - 0.24} y={stud[1] - 0.2} width={0.48} height={0.4} strokeWidth={0.045} transform={`rotate(${Math.atan2(stud[1], stud[0]) / DEG} ${stud[0]} ${stud[1]})`} {...D} />
+        <circle className="fill-s" cx={stud[0]} cy={stud[1]} r={0.1} {...F} />
+        <circle className="i fill-paper" cx={polar(HAIRSPRING.r1 + 0.12, curbAt)[0]} cy={polar(HAIRSPRING.r1 + 0.12, curbAt)[1]} r={0.085} strokeWidth={0.035} {...D} />
+        <circle className="i fill-paper" cx={polar(HAIRSPRING.r1 - 0.17, curbAt)[0]} cy={polar(HAIRSPRING.r1 - 0.17, curbAt)[1]} r={0.085} strokeWidth={0.035} {...D} />
+        <line className="c" x1={polar(1.12, curbAt)[0]} y1={polar(1.12, curbAt)[1]} x2={curb[0]} y2={curb[1]} strokeWidth={0.04} strokeDasharray="0.2 0.14" {...F} />
         <path className="s" d={ptsToPath(arc, false)} strokeWidth={0.04} {...D} />
         <path className="s" d={ptsToPath(head(arc[0], -45 * DEG - Math.PI / 2), false)} strokeWidth={0.04} {...D} />
         <path className="s" d={ptsToPath(head(arc[60], 225 * DEG + Math.PI / 2), false)} strokeWidth={0.04} {...D} />
       </Up>
-      <Key ch="a" size={0.62} at={[6.6, 5.2]} to={polar(5.1, 38 * DEG)} />
-      <Key ch="b" size={0.62} at={[-6.4, 5.6]} to={polar(2.6, 138 * DEG)} />
-      <Key ch="c" size={0.62} at={[6.9, -3.4]} to={polar(5.5, (12 / 14) * 360 * DEG + 0.12)} />
-      <Note at={[0, 6.72]} anchor="middle" size={0.5}>
+      <Dim a={[-BALANCE_R, 0]} b={[BALANCE_R, 0]} off={-7.05} label={`∅ ${num(BALANCE_R * 2)}`} size={0.48} />
+      <Key ch="a" size={0.62} at={[7.3, 5.4]} to={polar(4.7, 40 * DEG)} />
+      <Key ch="b" size={0.62} at={[-7.2, 5.9]} to={polar(2.6, 138 * DEG)} />
+      <Key ch="c" size={0.62} at={[7.5, -3.9]} to={polar(5.55, (12 / 14) * 360 * DEG + 0.12)} />
+      <Note at={[0, 6.82]} anchor="middle" size={0.5}>
         270° per parte
       </Note>
-      <Note at={[-7.3, -7.2]} size={0.46}>
+      <Note at={[-V + 0.5, -V + 0.55]} size={0.46}>
         scala 5 : 1
+      </Note>
+      <Note at={[V - 0.5, -V + 0.55]} size={0.46} anchor="end">
+        11 ½ spire
       </Note>
     </PlateSvg>
   );
@@ -270,8 +425,16 @@ export function PlateWinding() {
   const ratchetPhase = 0.11;
   const clickAt = add(B, polar(pitchR(GEAR.ratchet) + 1.3, 196 * DEG));
   const click = ([[-1.5, -0.45], [0.9, -0.6], [1.5, 0.1], [0.6, 0.62], [-1.5, 0.4]] as P2[]).map((p) => add(clickAt, rot(p, 110 * DEG)));
+  const turn = (c: P2, r: number, a0: number, a1: number): P2[] => Array.from({ length: 25 }, (_, i) => add(c, polar(r, (a0 + ((a1 - a0) * i) / 24) * DEG)));
+  const tip = (pts: P2[]): P2[] => {
+    const e = pts[pts.length - 1];
+    const d = angleTo(pts[pts.length - 3], e);
+    return [add(e, polar(0.55, d + 2.6)), e, add(e, polar(0.55, d - 2.6))];
+  };
+  const tRatchet = turn(B, 3.7, 150, 60);
+  const tCrown = turn(CW, 2.35, 250, 340);
   return (
-    <PlateSvg viewBox="-5.5 -15.5 31 22" label="The winding train: crown, stem, crown wheel, ratchet wheel and click above the mainspring barrel.">
+    <PlateSvg viewBox="-5.5 -15.5 31 22.6" label="The winding train from the bridge side: crown and stem, winding pinion, crown wheel of thirty-two teeth, ratchet wheel of forty-eight, and the click, above the mainspring barrel.">
       <Up>
         <path className="c" d={ptsToPath(Array.from({ length: 50 }, (_, i) => polar(PLATE_R, (-28 + i * 2.6) * DEG)), false)} strokeWidth={W.c} {...D} />
         <path className="c" d={ptsToPath(Array.from({ length: 44 }, (_, i) => polar(19.5, (-22 + i * 2.2) * DEG)), false)} strokeWidth={W.c} {...D} />
@@ -279,38 +442,62 @@ export function PlateWinding() {
         {/* barrel and its spring, below */}
         <path className="i fill-paper" d={ptsToPath(translatePts(gearOutline(GEAR.barrel, { phase: s.barrel }), B))} strokeWidth={W.i} {...D} />
         <circle className="i" cx={B[0]} cy={B[1]} r={6.05} strokeWidth={W.c} {...D} />
-        <path className="i" d={ptsToPath(translatePts(spiral(1.35, 5.86, 10.5, 420, s.barrel), B), false)} strokeWidth={0.045} {...D} />
+        <Mainspring c={B} phase={s.barrel} w={0.036} />
         {/* ratchet and crown wheel, above, in red chalk */}
         <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.ratchet, { phase: ratchetPhase, add: 0.8, ded: 0.9 }), B))} strokeWidth={W.s} {...D} />
         <circle className="s" cx={B[0]} cy={B[1]} r={2.6} strokeWidth={W.c} {...D} />
         <path className="s" d={ptsToPath(translatePts(gearOutline(GEAR.crownWheel, { phase: angleTo(CW, B) + Math.PI / 32 + ratchetPhase * 1.5, add: 0.8, ded: 0.9 }), CW))} strokeWidth={W.s} {...D} />
         <circle className="s" cx={CW[0]} cy={CW[1]} r={1.7} strokeWidth={W.c} {...D} />
-        <path className="s" d={ptsToPath(click)} strokeWidth={W.s} {...D} />
+        <path className="s fill-paper" d={ptsToPath(click)} strokeWidth={W.s} {...D} />
+        <path className="s" d={`M${click[4][0]} ${click[4][1]}Q${clickAt[0] - 3.4} ${clickAt[1] + 1.2} ${clickAt[0] - 2.2} ${clickAt[1] + 4.4}`} strokeWidth={0.05} {...D} />
         <circle className="i fill-paper" cx={B[0]} cy={B[1]} r={1.05} strokeWidth={W.i} {...D} />
+        <line className="i" x1={B[0] - 0.7} y1={B[1] - 0.55} x2={B[0] + 0.7} y2={B[1] + 0.55} strokeWidth={0.12} {...F} />
+        <circle className="i fill-paper" cx={CW[0]} cy={CW[1]} r={0.85} strokeWidth={W.i} {...D} />
+        <line className="i" x1={CW[0] - 0.6} y1={CW[1] + 0.4} x2={CW[0] + 0.6} y2={CW[1] - 0.4} strokeWidth={0.12} {...F} />
+        {/* which way they turn when the crown is wound */}
+        <path className="c" d={ptsToPath(tRatchet, false)} strokeWidth={0.07} {...D} />
+        <path className="c" d={ptsToPath(tip(tRatchet), false)} strokeWidth={0.07} {...D} />
+        <path className="c" d={ptsToPath(tCrown, false)} strokeWidth={0.07} {...D} />
+        <path className="c" d={ptsToPath(tip(tCrown), false)} strokeWidth={0.07} {...D} />
         {/* stem and crown */}
         <path className="i" d="M5.4 0.42H19.6M5.4 -0.42H19.6" strokeWidth={W.i} {...D} />
         <rect className="i fill-paper" x={9.4} y={-0.92} width={1.7} height={1.84} strokeWidth={W.i} {...D} />
+        <path className="i" d="M9.4 -0.46H11.1M9.4 0H11.1M9.4 0.46H11.1" strokeWidth={W.c} {...F} />
         <rect className="i fill-paper" x={12.2} y={-1.12} width={1.1} height={2.24} strokeWidth={W.i} {...D} />
+        <path className="i" d="M12.2 -0.67H13.3M12.2 -0.22H13.3M12.2 0.22H13.3M12.2 0.67H13.3" strokeWidth={W.c} {...F} />
         <rect className="i fill-paper" x={19.5} y={-1.7} width={0.8} height={3.4} strokeWidth={W.i} {...D} />
-        <rect className="i fill-paper" x={20.3} y={-2.75} width={2.6} height={5.5} rx={0.3} strokeWidth={W.h} {...D} />
-        {Array.from({ length: 9 }, (_, i) => (
-          <line key={i} className="i" x1={20.45} y1={-2.2 + i * 0.55} x2={22.75} y2={-2.2 + i * 0.55} strokeWidth={W.c} {...F} />
+        <rect className="i fill-paper" x={20.3} y={-2.3} width={2.5} height={4.6} rx={0.3} strokeWidth={W.h} {...D} />
+        <rect className="i fill-paper" x={22.8} y={-2.3} width={0.32} height={4.6} rx={0.1} strokeWidth={W.i} {...D} />
+        {Array.from({ length: 11 }, (_, i) => (
+          <line key={i} className="i" x1={20.42} y1={-1.95 + i * 0.39} x2={22.7} y2={-1.95 + i * 0.39} strokeWidth={W.c} {...F} />
         ))}
         <Pivot c={B} />
         <Pivot c={CW} />
       </Up>
       <Key ch="a" size={1.2} at={[-3.6, 13.6]} to={add(B, polar(6.9, 150 * DEG))} />
       <Key ch="b" size={1.2} at={[13.8, 13.2]} to={add(B, polar(4.9, 52 * DEG))} />
-      <Key ch="c" size={1.2} at={[17.2, 6.4]} to={add(CW, polar(3.2, 40 * DEG))} />
-      <Key ch="d" size={1.2} at={[23.2, -4.6]} to={[21.6, -2.8]} />
+      <Key ch="c" size={1.2} at={[17.6, 6.6]} to={add(CW, polar(3.2, 40 * DEG))} />
+      <Key ch="d" size={1.2} at={[24.2, -4.4]} to={[22.2, -2.4]} />
       <Key ch="e" size={1.2} at={[-4.2, 0.9]} to={clickAt} />
+      <Note at={add(B, [-1.2, -3.55])} size={0.74} anchor="middle">
+        z 48
+      </Note>
+      <Note at={add(CW, [2.9, -3.0])} size={0.74}>
+        z 32
+      </Note>
+      <Note at={[12.75, -2.4]} size={0.74} anchor="middle">
+        z 10
+      </Note>
+      <Note at={[-5.0, -6.3]} size={0.9}>
+        30 giri di corona = 6 ¼ al bariletto = 50 ore
+      </Note>
     </PlateSvg>
   );
 }
 
 /* ------------------------------------------------------------ developed section */
 
-/** The train unrolled into one plane and cut through its arbors: plate below, bridges above. */
+/** The train unrolled into one plane and cut through its arbors: dial and hands below, plate, wheels, bridges above. */
 export function PlateSection({ dark = false }: { dark?: boolean }) {
   const order: [string, P2][] = [
     ['barrel', AX.barrel],
@@ -324,90 +511,262 @@ export function PlateSection({ dark = false }: { dark?: boolean }) {
   const xs: number[] = [0];
   for (let i = 1; i < order.length; i++) xs.push(xs[i - 1] + dist(order[i - 1][1], order[i][1]));
   const [xB, xC, xT, xF, xE, xP, xBal] = xs;
+  const hatch = `url(#${dark ? 'hatch-d' : 'hatch'})`;
   const disc = (x: number, r: number, m: number, t = 0.16) => <rect className="i fill-paper" x={x - r} y={m - t / 2} width={r * 2} height={t} strokeWidth={0.05} {...D} />;
   const pin = (x: number, r: number, span: P2) => <rect className="i fill-paper" x={x - r} y={span[0]} width={r * 2} height={span[1] - span[0]} strokeWidth={0.05} {...D} />;
   const arbor = (x: number, m0: number, m1: number) => <line className="i" x1={x} y1={m0} x2={x} y2={m1} strokeWidth={0.07} {...D} />;
-  const jewel = (x: number, m: number) => <rect key={`j${x.toFixed(2)}${m.toFixed(2)}`} className="fill-s" x={x - 0.42} y={m - 0.2} width={0.84} height={0.4} {...F} />;
+  const jewel = (x: number, m: number) => <rect key={`j${x.toFixed(2)}${m.toFixed(2)}`} className="fill-s" x={x - 0.42} y={m - 0.2} width={0.84} height={0.4} rx={0.06} {...F} />;
+  const endstone = (x: number, m: number) => <rect key={`e${x.toFixed(2)}${m.toFixed(2)}`} className="fill-s" x={x - 0.3} y={m - 0.1} width={0.6} height={0.2} rx={0.05} {...F} />;
   const x0 = -8.6;
   const x1 = xBal + 6.8;
+  const P = PLATE_T;
+  // the spring cut across: one line for each turn, either side of the arbor
+  const coils = Math.round(MAINSPRING.turns) * 2;
+  const lip = 4.3;
+  const floor = 4.14;
+  const names: [number, string, number][] = [
+    [xB, 'bariletto', 0],
+    [xC, 'centro', 0],
+    [xT, 'mediana', 0],
+    [xF, 'secondi', 0],
+    [xE, 'scappamento', 0],
+    [xP, 'àncora', 0.72],
+    [xBal, 'bilanciere', 0],
+  ];
   return (
-    <PlateSvg mode="scrub" className={dark ? 'on-dark' : ''} viewBox={`${x0 - 1.4} -5.3 ${x1 - x0 + 2.4} 9.9`} label="Developed cross-section of the Calibro V.31: every arbor of the train between the mainplate and its bridges.">
+    <PlateSvg mode="scrub" className={dark ? 'on-dark' : ''} viewBox={`${x0 - 1.5} -5.3 ${x1 - x0 + 2.5} 11.2`} label="Developed cross-section of the Calibro V.31: dial and hands below the mainplate, every arbor of the train between the plate and its bridges, and the jewels they turn in.">
       <defs>
         <pattern id={dark ? 'hatch-d' : 'hatch'} width="0.34" height="0.34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="0.34" stroke={dark ? '#cdbf9f' : '#4a3423'} strokeWidth="0.035" />
         </pattern>
       </defs>
-      {/* here m (plate towards bridges) is drawn upwards: y = -m handled by flipping below */}
+      {/* heights are measured from the plate towards the bridges and drawn upwards */}
       <g transform="scale(1,-1)">
-        <rect x={x0} y={-PLATE_T} width={x1 - x0} height={PLATE_T} fill={`url(#${dark ? 'hatch-d' : 'hatch'})`} {...F} />
-        <rect className="i" x={x0} y={-PLATE_T} width={x1 - x0} height={PLATE_T} strokeWidth={0.07} {...D} />
-        <rect x={x0} y={LV.bridge[0]} width={xE + 1.6 - x0} height={LV.bridge[1] - LV.bridge[0]} fill={`url(#${dark ? 'hatch-d' : 'hatch'})`} {...F} />
+        {/* dial, with the seconds sunk into it, and the hands beneath */}
+        <path className="i fill-paper" d={`M${x0} ${-P}H${x1}V${-P - 0.4}H${xF + lip}L${xF + floor} ${-P - 0.1}H${xF - floor}L${xF - lip} ${-P - 0.4}H${x0}Z`} strokeWidth={0.05} {...D} />
+        <rect className="i fill-paper" x={xC - 14.7} y={-P - 1.48} width={15.65} height={0.24} strokeWidth={0.045} {...D} />
+        <rect className="i fill-paper" x={xC - 1.2} y={-P - 1.17} width={11.1} height={0.25} strokeWidth={0.045} {...D} />
+        <rect className="i fill-paper" x={xF - 1.25} y={-P - 0.6} width={4.87} height={0.1} strokeWidth={0.04} {...D} />
+        {/* mainplate, bridges and cock, in section */}
+        <rect x={x0} y={-P} width={x1 - x0} height={P} fill={hatch} {...F} />
+        <rect className="i" x={x0} y={-P} width={x1 - x0} height={P} strokeWidth={0.07} {...D} />
+        <rect x={x0} y={LV.bridge[0]} width={xE + 1.6 - x0} height={LV.bridge[1] - LV.bridge[0]} fill={hatch} {...F} />
         <rect className="i" x={x0} y={LV.bridge[0]} width={xE + 1.6 - x0} height={LV.bridge[1] - LV.bridge[0]} strokeWidth={0.07} {...D} />
-        <rect x={xBal - 1.6} y={LV.cock[0]} width={x1 - (xBal - 1.6)} height={LV.cock[1] - LV.cock[0]} fill={`url(#${dark ? 'hatch-d' : 'hatch'})`} {...F} />
+        <rect x={xBal - 1.6} y={LV.cock[0]} width={x1 - (xBal - 1.6)} height={LV.cock[1] - LV.cock[0]} fill={hatch} {...F} />
         <path className="i" d={`M${xBal - 1.6} ${LV.cock[0]}H${x1 - 2.4}V0H${x1}V${LV.cock[1]}H${xBal - 1.6}Z`} strokeWidth={0.07} {...D} />
         <rect className="i fill-paper" x={xP - 0.7} y={LV.palletBridge[0]} width={2.6} height={LV.palletBridge[1] - LV.palletBridge[0]} strokeWidth={0.05} {...D} />
-        {/* barrel */}
+        {/* barrel: drum, spring in section, arbor, and the ratchet wheel above the bridge */}
         <path className="i fill-paper" d={`M${xB - 6.42} ${LV.barrel[0] + 0.1}V${LV.barrelTeeth[0]}H${xB - 6.95}V${LV.barrel[1]}H${xB + 6.95}V${LV.barrelTeeth[0]}H${xB + 6.42}V${LV.barrel[0] + 0.1}Z`} strokeWidth={0.06} {...D} />
-        {Array.from({ length: 21 }, (_, i) => {
-          const x = xB - 5.85 + i * 0.585;
-          if (Math.abs(x - xB) < 1.3) return null;
-          return <line key={i} className="i" x1={x} y1={0.36} x2={x} y2={1.16} strokeWidth={0.05} {...D} />;
+        {Array.from({ length: coils + 1 }, (_, i) => {
+          const x = xB - MAINSPRING.r1 + (i * MAINSPRING.r1 * 2) / coils;
+          if (Math.abs(x - xB) < MAINSPRING.r0) return null;
+          return <line key={i} className="i" x1={x} y1={0.36} x2={x} y2={1.16} strokeWidth={0.045} {...D} />;
         })}
         {pin(xB, 1.15, [0.22, 1.55])}
-        {arbor(xB, 0, LV.keyless[1])}
-        {disc(xB, 4.8, (LV.keyless[0] + LV.keyless[1]) / 2, 0.27)}
+        {arbor(xB, -P + 0.3, LV.keyless[1])}
+        {disc(xB, pitchR(GEAR.ratchet), (LV.keyless[0] + LV.keyless[1]) / 2, 0.27)}
         {/* centre, third, fourth, escape */}
-        {arbor(xC, -PLATE_T - 1.5, LV.bridge[0] + 0.3)}
+        {arbor(xC, -P - 1.86, LV.bridge[0] + 0.3)}
+        {pin(xC, 0.56, [-P - 1.66, -P - 0.4])}
         {pin(xC, 0.85, LV.centrePinion)}
         {disc(xC, pitchR(GEAR.centreWheel), LV.centreWheel)}
         {arbor(xT, -0.3, LV.bridge[0] + 0.3)}
         {pin(xT, 0.64, LV.thirdPinion)}
         {disc(xT, pitchR(GEAR.thirdWheel), LV.thirdWheel)}
-        {arbor(xF, -PLATE_T - 0.8, LV.bridge[0] + 0.3)}
+        {arbor(xF, -P - 0.74, LV.bridge[0] + 0.3)}
         {pin(xF, 0.52, LV.fourthPinion)}
         {disc(xF, pitchR(GEAR.fourthWheel), LV.fourthWheel)}
         {arbor(xE, -0.3, LV.bridge[0] + 0.3)}
         {pin(xE, 0.33, LV.escapePinion)}
         {disc(xE, ESCAPE_R, LV.escapeWheel, 0.12)}
-        {/* pallet and balance */}
+        {/* lever and balance */}
         {arbor(xP, -0.3, LV.palletBridge[0] + 0.2)}
         {disc(xP + 0.7, 2.0, LV.pallet, 0.14)}
         {arbor(xBal, -0.3, LV.cock[0] + 0.3)}
         {disc(xBal, 0.84, (LV.roller[0] + LV.roller[1]) / 2, 0.2)}
         {disc(xBal, BALANCE_R, (LV.balanceRim[0] + LV.balanceRim[1]) / 2, 0.35)}
-        {disc(xBal, 3.36, (LV.hairspring[0] + LV.hairspring[1]) / 2, 0.14)}
-        {[xC, xT, xF, xE].map((x) => jewel(x, LV.bridge[0] + 0.32))}
-        {[xT, xF, xE, xP, xBal].map((x) => jewel(x, -0.22))}
+        {disc(xBal, HAIRSPRING.r1, (LV.hairspring[0] + LV.hairspring[1]) / 2, 0.14)}
+        {/* sixteen of the nineteen jewels lie in this plane */}
+        {[xB, xC, xT, xF, xE].map((x) => jewel(x, LV.bridge[0] + 0.32))}
+        {[xB, xC, xT, xF, xE, xP, xBal].map((x) => jewel(x, -0.22))}
         {jewel(xBal, LV.cock[0] + 0.25)}
         {jewel(xP, LV.palletBridge[0] + 0.13)}
+        {endstone(xBal, LV.cock[0] + 0.25 + 0.34)}
+        {endstone(xBal, -0.22 - 0.34)}
       </g>
-      {(
-        [
-          [xB, 'bariletto'],
-          [xC, 'centro'],
-          [xT, 'mediana'],
-          [xF, 'secondi'],
-          [xE, 'scappamento'],
-          [xBal, 'bilanciere'],
-        ] as [number, string][]
-      ).map(([x, t]) => (
-        <text key={t} {...F} x={x} y={4.15} fontSize={0.56} textAnchor="middle">
+      {names.map(([x, t, dy]) => (
+        <text key={t} {...F} className="halo" x={x} y={P + 2.75 + dy} fontSize={0.56} textAnchor="middle">
           {t}
         </text>
       ))}
+      <text {...F} className="halo" x={xB} y={-LV.keyless[1] - 0.42} fontSize={0.5} textAnchor="middle">
+        rocchetto
+      </text>
+      <text {...F} className="halo" x={(xT + xF) / 2} y={-LV.bridge[1] - 0.36} fontSize={0.5} textAnchor="middle">
+        ponte del treno
+      </text>
+      <text {...F} className="halo" x={xBal + 3.1} y={-LV.cock[1] - 0.36} fontSize={0.5} textAnchor="middle">
+        ponte del bilanciere
+      </text>
+      <text {...F} className="halo" x={x1 - 0.5} y={P / 2 + 0.16} fontSize={0.5} textAnchor="end">
+        platina
+      </text>
+      <text {...F} className="halo" x={x1 - 0.5} y={P + 1.05} fontSize={0.5} textAnchor="end">
+        quadrante
+      </text>
+      <text {...F} className="halo" x={xC - 11.6} y={P + 2.05} fontSize={0.5} textAnchor="middle">
+        lancette
+      </text>
+      <text {...F} className="halo" x={x1} y={P + 3.72} fontSize={0.5} textAnchor="end">
+        19 rubini: sedici in sezione, due levée, un’ellisse
+      </text>
       <g {...F}>
-        <line className="c" x1={x0 - 0.5} y1={PLATE_T} x2={x0 - 0.5} y2={-LV.cock[1]} strokeWidth={0.04} />
-        <line className="c" x1={x0 - 0.75} y1={PLATE_T} x2={x0 - 0.25} y2={PLATE_T} strokeWidth={0.04} />
-        <line className="c" x1={x0 - 0.75} y1={-LV.cock[1]} x2={x0 - 0.25} y2={-LV.cock[1]} strokeWidth={0.04} />
+        <line className="s" x1={x0 - 0.6} y1={P} x2={x0 - 0.6} y2={-LV.cock[1]} strokeWidth={0.045} />
+        <line className="s" x1={x0 - 0.9} y1={P} x2={x0 - 0.3} y2={P} strokeWidth={0.045} />
+        <line className="s" x1={x0 - 0.9} y1={-LV.cock[1]} x2={x0 - 0.3} y2={-LV.cock[1]} strokeWidth={0.045} />
       </g>
-      <text {...F} className="dim" x={x0 - 0.2} y={-LV.cock[1] - 0.5} fontSize={0.42}>
-        5,9
+      <text {...F} className="dim" x={x0 - 0.6} y={-LV.cock[1] - 0.42} fontSize={0.44} textAnchor="middle">
+        {num(CALIBRE_HEIGHT)}
       </text>
     </PlateSvg>
   );
 }
 
+/* ------------------------------------------------------------ finishing, in section */
+
+/** A written note with a fine line to what it is about. */
+const Call = ({ at, to, children, anchor = 'start', size = 0.24 }: { at: P2; to: P2; children: ReactNode; anchor?: 'start' | 'middle' | 'end'; size?: number }) => (
+  <g {...F}>
+    <line className="c" x1={to[0]} y1={-to[1]} x2={at[0]} y2={-at[1] + size * 0.45} strokeWidth={size * 0.07} />
+    <text className="halo" x={at[0]} y={-at[1]} fontSize={size} textAnchor={anchor}>
+      {children}
+    </text>
+  </g>
+);
+
+/**
+ * What the finishing is, cut through a bridge at forty times life size: the bevel along the edge,
+ * the stripes on the face, a jewel in its gold setting and a blued screw in its polished sink.
+ */
+export function PlateFinish({ dark = false }: { dark?: boolean }) {
+  const t = LV.bridge[1] - LV.bridge[0];
+  const b = 0.17;
+  const xL = -4.5;
+  const xR = 4.6;
+  const xj = -1.85;
+  const rj = 0.5;
+  const rc = rj + 0.34;
+  const rh = rj + 0.38;
+  const xs = 2.15;
+  const rs = 0.7;
+  const ro = 0.8;
+  const pitch = 1.43;
+  const top = (xa: number, xb: number): string => {
+    const n = Math.max(2, Math.round(Math.abs(xb - xa) / 0.06));
+    let d = '';
+    for (let i = 0; i <= n; i++) {
+      const x = xa + ((xb - xa) * i) / n;
+      d += `L${x.toFixed(3)} ${(t + 0.045 * Math.abs(Math.sin((Math.PI * (x - xL)) / pitch))).toFixed(3)}`;
+    }
+    return d;
+  };
+  const A = `M${xL + b} 0L${xj - rh - b} 0L${xj - rh} ${b}L${xj - rh} ${t - b}L${xj - rh - b} ${t}${top(xj - rh - b, xL + b)}L${xL} ${t - b}L${xL} ${b}Z`;
+  const sh = 0.36; // how deep the head sits
+  const cl = 0.36; // clearance hole for the shank
+  const B = `M${xj + rh + b} 0L${xs - cl} 0L${xs - cl} ${t - sh}L${xs - ro} ${t - sh}L${xs - ro} ${t - b}L${xs - ro - b} ${t}${top(xs - ro - b, xj + rh + b)}L${xj + rh} ${t - b}L${xj + rh} ${b}Z`;
+  const C = `M${xs + cl} 0L${xR} 0L${xR - 0.12} ${t * 0.3}L${xR + 0.1} ${t * 0.55}L${xR} ${t}${top(xR, xs + ro + b)}L${xs + ro} ${t - b}L${xs + ro} ${t - sh}L${xs + cl} ${t - sh}Z`;
+  const bevels = `M${xL} ${t - b}L${xL + b} ${t}M${xj - rh - b} ${t}L${xj - rh} ${t - b}M${xj + rh} ${t - b}L${xj + rh + b} ${t}M${xs - ro - b} ${t}L${xs - ro} ${t - b}M${xs + ro} ${t - b}L${xs + ro + b} ${t}`;
+  const id = dark ? 'hatch-fd' : 'hatch-f';
+  const hatch = `url(#${id})`;
+  const ruby = (sg: number) => `M${xj + sg * rj} 0.1V${t - 0.03}Q${xj + sg * 0.3} ${t - 0.04} ${xj + sg * 0.11} ${t - 0.24}V0.1Z`;
+  return (
+    <PlateSvg mode="scrub" className={dark ? 'on-dark' : ''} viewBox="-5.9 -2.55 11.6 4.5" label="Section through a bridge at forty times life size: the forty-five degree bevel along its edge, the stripes on its face, a ruby in its gold setting and a blued screw seated in a polished sink.">
+      <defs>
+        <pattern id={id} width="0.11" height="0.11" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="0.11" stroke={dark ? '#cdbf9f' : '#4a3423'} strokeWidth="0.012" />
+        </pattern>
+        <pattern id={`${id}-p`} width="0.16" height="0.16" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+          <line x1="0" y1="0" x2="0" y2="0.16" stroke={dark ? '#cdbf9f' : '#4a3423'} strokeWidth="0.01" />
+        </pattern>
+      </defs>
+      <Up>
+        {/* the pillar of the plate the screw goes into */}
+        <path d={`M${xs - 1.5} 0H${xs + 1.5}V-1.25L${xs + 0.9} -1.38L${xs + 0.2} -1.2L${xs - 0.7} -1.4L${xs - 1.5} -1.25Z`} fill={`url(#${id}-p)`} {...F} />
+        <path className="i" d={`M${xs - 1.5} -1.25V0H${xs + 1.5}V-1.25`} strokeWidth={0.02} {...D} />
+        {/* the bridge */}
+        {[A, B, C].map((d, i) => (
+          <g key={i}>
+            <path d={d} fill={hatch} {...F} />
+            <path className="i" d={d} strokeWidth={0.024} {...D} />
+          </g>
+        ))}
+        {/* every polished face, in red chalk */}
+        <path className="s" d={bevels} strokeWidth={0.05} {...D} />
+        {/* jewel: gold setting, ruby with its oil sink, and the pivot turning in it */}
+        {[1, -1].map((sg) => (
+          <g key={sg}>
+            <path className="i fill-paper" d={`M${xj + sg * rj} 0.14H${xj + sg * rc}V${t + 0.015}H${xj + sg * rj}Z`} strokeWidth={0.02} {...D} />
+            <path className="fill-s" d={ruby(sg)} {...F} />
+          </g>
+        ))}
+        <path className="i fill-paper" d={`M${xj - 0.27} -1.3V-0.12L${xj - 0.1} 0V${t - 0.3}H${xj + 0.1}V0L${xj + 0.27} -0.12V-1.3`} strokeWidth={0.02} {...D} />
+        <line className="c" x1={xj} y1={-1.5} x2={xj} y2={t + 0.5} strokeWidth={0.012} strokeDasharray="0.12 0.05 0.03 0.05" {...F} />
+        {/* screw: head, slot, shank and thread */}
+        <path
+          className="i fill-paper"
+          d={`M${xs - rs} ${t - sh}V${t + 0.03}L${xs - rs + 0.07} ${t + 0.1}H${xs - 0.085}V${t - 0.07}H${xs + 0.085}V${t + 0.1}H${xs + rs - 0.07}L${xs + rs} ${t + 0.03}V${t - 0.36}H${xs + 0.3}V-1.02L${xs + 0.22} -1.1H${xs - 0.22}L${xs - 0.3} -1.02V${t - 0.36}Z`}
+          strokeWidth={0.024}
+          {...D}
+        />
+        {Array.from({ length: 9 }, (_, i) => (
+          <line key={i} className="i" x1={xs - 0.3} y1={-0.08 - i * 0.11} x2={xs + 0.3} y2={-0.13 - i * 0.11} strokeWidth={0.012} {...F} />
+        ))}
+        <line className="c" x1={xs} y1={-1.5} x2={xs} y2={t + 0.5} strokeWidth={0.012} strokeDasharray="0.12 0.05 0.03 0.05" {...F} />
+      </Up>
+      <Dim a={[xL, 0]} b={[xL, t]} off={0.82} label={num(t, 2)} size={0.2} />
+      <Dim a={[xL, t]} b={[xL + b, t]} off={0.42} label={num(b, 2)} size={0.17} gap={0.75} />
+      <Dim a={[xL + 3 * pitch, t + 0.05]} b={[xL + 4 * pitch, t + 0.05]} off={0.36} label={`passo ${num(pitch, 2)}`} size={0.17} gap={0.75} />
+      <Call at={[-5.75, 1.62]} to={[xL + b / 2, t - b / 2]}>
+        smusso a 45°, lucidato a specchio
+      </Call>
+      <Call at={[-5.75, -1.0]} to={[xj - 0.67, 0.2]}>
+        rubino nel suo castone d’oro
+      </Call>
+      <Call at={[0.5, 1.62]} to={[0.3, t + 0.06]} anchor="middle">
+        côtes
+      </Call>
+      <Call at={[xs, 1.62]} to={[xs + 0.4, t + 0.1]} anchor="middle">
+        vite azzurrata
+      </Call>
+      <Call at={[5.55, 1.2]} to={[xs + ro + b / 2, t - b / 2]} anchor="end">
+        svasatura lucidata
+      </Call>
+      <Call at={[5.55, -1.0]} to={[xs + 1.2, -0.7]} anchor="end">
+        platina
+      </Call>
+      <Note at={[-5.7, -1.75]} size={0.2}>
+        scala 40 : 1
+      </Note>
+    </PlateSvg>
+  );
+}
+
 /* ------------------------------------------------------------ case plates for the collection */
+
+const ROMAN = ['XII', 'I', 'II', 'III', 'IIII', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+
+/** The right-hand edge of a feuille hand mirrored into a closed outline: the same curve the 3D hands are filed to. */
+function leafOutline(L: number, Wd: number): P2[] {
+  const n = 22;
+  const right: P2[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    right.push([Wd * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.6)), 0.9) + 0.16 * (1 - t), 0.5 + (L - 0.5) * t]);
+  }
+  return [...right, ...right.slice(0, -1).reverse().map(([x, y]) => [-x, y] as P2)];
+}
+const swordOutline = (L: number, w: number): P2[] => [[-w * 0.55, -1.7], [w * 0.55, -1.7], [w, L - 2.6], [0, L], [-w, L - 2.6]];
+const batonOutline = (L: number, w: number): P2[] => [[-w * 0.62, -1.9], [w * 0.62, -1.9], [w * 0.62, L], [-w * 0.62, L]];
 
 export function PlateCase({ spec }: { spec: WatchSpec }) {
   const R = spec.diameter / 2;
@@ -415,16 +774,52 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
   const L = spec.lugToLug / 2;
   const lw = spec.lugWidth / 2;
   const T = spec.thickness;
+  const kt = T / 10.5;
   const ex = R + 15; // where the elevation stands
-  const zTop = T * 0.36;
-  const zBot = -T * 0.64;
+  const zTop = T / 2;
+  const zBot = -T / 2;
   const diver = spec.bezel === 'dive';
-  const handA = (deg: number, len: number) => polar(len, (90 - deg) * DEG);
+  const gmt = spec.bezel === 'gmt';
+  const style = spec.dial.style;
   const dimY = -(L + 5.2);
+  const lugW = 2.3 * k;
   const lug = (sx: number, sy: number) =>
-    `M${sx * lw} ${sy * Math.sqrt(R * R - lw * lw) * 0.985}L${sx * lw} ${sy * L}L${sx * (lw + 2.6 * k)} ${sy * L}L${sx * (lw + 2.6 * k)} ${sy * Math.sqrt(Math.max(0, R * R - (lw + 2.6 * k) ** 2)) * 0.985}`;
+    `M${sx * lw} ${sy * Math.sqrt(R * R - lw * lw) * 0.985}L${sx * lw} ${sy * (L - 0.4)}Q${sx * lw} ${sy * L} ${sx * (lw + 0.4)} ${sy * L}L${sx * (lw + lugW - 0.4)} ${sy * L}Q${sx * (lw + lugW)} ${sy * L} ${sx * (lw + lugW)} ${sy * (L - 0.4)}L${sx * (lw + lugW)} ${sy * Math.sqrt(Math.max(0, R * R - (lw + lugW) ** 2)) * 0.985}`;
+  // a point on the dial, by the clock: `deg` clockwise from twelve
+  const at = (r: number, deg: number): P2 => polar(r * k, (90 - deg) * DEG);
+  const hand = (pts: P2[], deg: number) => ptsToPath(pts.map((p) => rot([p[0] * k, p[1] * k], -deg * DEG)));
+  const hourDeg = 304.3;
+  const minDeg = 51.6;
+  const shape = spec.hands === 'leaf' ? leafOutline : spec.hands === 'sword' ? swordOutline : batonOutline;
+  const bar = (r0: number, r1: number, w: number, deg: number, off = 0) =>
+    ptsToPath(([[-w / 2 + off, r0], [w / 2 + off, r0], [w / 2 + off, r1], [-w / 2 + off, r1]] as P2[]).map((p) => rot([p[0] * k, p[1] * k], -deg * DEG)));
+  const numeral = (text: string, r: number, deg: number, size: number, flip = false) => {
+    const p = at(r, deg);
+    return (
+      <text key={`${text}${deg}`} {...F} className="num" x={p[0]} y={-p[1]} fontSize={size * k} textAnchor="middle" dominantBaseline="central" transform={`rotate(${deg + (flip ? 180 : 0)} ${p[0]} ${-p[1]})`}>
+        {text}
+      </text>
+    );
+  };
+  // elevation: the real profile of the case, x along the thickness, y across
+  const tx = ex + 1.73 * kt;
+  const ez = (z: number) => z * kt;
+  const lugY = (y: number) => R + ((y - 19.5) * (L - R)) / (23.4 - 19.5);
+  const half = (sy: number) =>
+    [
+      `M${ez(-6.98)} ${sy * 17.4 * k}L${ez(-6.38)} ${sy * 18.5 * k}L${ez(-5.6)} ${sy * 18.5 * k}`,
+      `M${ez(-5.6)} ${sy * 18.6 * k}L${ez(-4.7)} ${sy * R}L${ez(0.6)} ${sy * R}L${ez(1.3)} ${sy * 18.9 * k}`,
+      `M${ez(1.3)} ${sy * 19.3 * k}L${ez(1.5)} ${sy * 19.3 * k}L${ez(2.36)} ${sy * 18.5 * k}L${ez(2.6)} ${sy * 17.5 * k}L${ez(2.88)} ${sy * 16.98 * k}`,
+      `M${ez(0.9)} ${sy * lugY(19.4)}Q${ez(0.5)} ${sy * lugY(20.9)} ${ez(-1.5)} ${sy * lugY(22.3)}T${ez(-4.9)} ${sy * L}L${ez(-5.5)} ${sy * (L - 0.5)}L${ez(-5.6)} ${sy * R * 0.955}`,
+    ].join('');
+  const edges = [-5.6, -4.7, 0.6, 1.3, 2.36, 2.88]
+    .map((z) => {
+      const y = z <= -5.6 ? 18.5 * k : z <= 0.6 ? R : z <= 1.3 ? 18.9 * k : z <= 2.36 ? 18.5 * k : 16.98 * k;
+      return `M${ez(z)} ${-y}V${y}`;
+    })
+    .join('');
   return (
-    <PlateSvg viewBox={`${-R - 9} ${-L - 9.5} ${R * 2 + 38} ${L * 2 + 18}`} label={`Plan and side elevation of the ${spec.name}, with its principal dimensions.`}>
+    <PlateSvg viewBox={`${-R - 9} ${-L - 9.5} ${R * 2 + 38} ${L * 2 + 18}`} label={`Plan and side elevation of the ${spec.name}, with its dial, hands and principal dimensions.`}>
       <Up>
         {/* construction */}
         <line className="c" x1={-R - 7} y1={0} x2={ex + T} y2={0} strokeWidth={0.09} {...D} />
@@ -432,59 +827,147 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
         <circle className="c" r={R * 1.27} strokeWidth={0.09} {...D} />
         <line className="c" x1={-R} y1={L} x2={ex + zTop + 3} y2={L} strokeWidth={0.07} {...D} />
         <line className="c" x1={-R} y1={-L} x2={ex + zTop + 3} y2={-L} strokeWidth={0.07} {...D} />
-        {/* plan */}
+        {/* plan: case, bezel, crystal, the opening of the dial */}
         <circle className="i" r={R} strokeWidth={0.2} {...D} />
-        <circle className="i" r={R - (diver ? 2.6 : 1.5) * k} strokeWidth={0.13} {...D} />
+        <circle className="i" r={(diver ? 19.2 : gmt ? 19.02 : 18.5) * k} strokeWidth={0.1} {...D} />
+        <circle className="i" r={16.96 * k} strokeWidth={0.13} {...D} />
         <circle className="i" r={16.0 * k} strokeWidth={0.1} {...D} />
         {[1, -1].map((sx) => [1, -1].map((sy) => <path key={`${sx}${sy}`} className="i" d={lug(sx, sy)} strokeWidth={0.18} {...D} />))}
-        <rect className="i" x={R + 0.7} y={-2.7 * k} width={2.8 * k} height={5.4 * k} rx={0.3} strokeWidth={0.18} {...D} />
-        {spec.crownGuards && <path className="i" d={`M${R * 0.94} ${5.6 * k}L${R + 2.4} ${3.9 * k}M${R * 0.94} ${-5.6 * k}L${R + 2.4} ${-3.9 * k}`} strokeWidth={0.18} {...D} />}
-        {Array.from({ length: 12 }, (_, h) => {
-          if (spec.seconds === 'small' && h === 6) return null;
-          const a = (90 - h * 30) * DEG;
-          const r0 = (h % 3 === 0 ? 11.2 : 12.2) * k;
-          return <line key={h} className="i" x1={Math.cos(a) * r0} y1={Math.sin(a) * r0} x2={Math.cos(a) * 14.6 * k} y2={Math.sin(a) * 14.6 * k} strokeWidth={h % 3 === 0 ? 0.26 : 0.16} {...D} />;
-        })}
-        {diver &&
-          Array.from({ length: 60 }, (_, i) => {
-            const a = (i / 60) * TAU;
-            return <line key={i} className="i" x1={Math.cos(a) * (R - 0.2)} y1={Math.sin(a) * (R - 0.2)} x2={Math.cos(a) * (R + 0.45)} y2={Math.sin(a) * (R + 0.45)} strokeWidth={0.1} {...F} />;
-          })}
-        {spec.bezel === 'gmt' && <circle className="i" r={R - 0.8 * k} strokeWidth={0.07} {...D} />}
-        {spec.seconds === 'small' && <circle className="i" cx={0} cy={-8.6 * k} r={4.3 * k} strokeWidth={0.12} {...D} />}
-        <line className="s" x1={0} y1={0} x2={handA(304, 9.6 * k)[0]} y2={handA(304, 9.6 * k)[1]} strokeWidth={0.34} {...D} />
-        <line className="s" x1={0} y1={0} x2={handA(51, 14.2 * k)[0]} y2={handA(51, 14.2 * k)[1]} strokeWidth={0.26} {...D} />
-        {spec.gmtHand && <line className="s" x1={0} y1={0} x2={handA(200, 13 * k)[0]} y2={handA(200, 13 * k)[1]} strokeWidth={0.14} {...D} />}
-        <circle className="fill-s" r={0.6} {...F} />
+        {[1, -1].map((sy) => (
+          <line key={sy} className="i" x1={-lw} y1={sy * (L - 2.2 * k)} x2={lw} y2={sy * (L - 2.2 * k)} strokeWidth={0.1} strokeDasharray="0.7 0.5" {...F} />
+        ))}
+        {/* crown, fluted */}
+        <rect className="i" x={R + 0.2} y={-1.7 * k} width={0.75 * k} height={3.4 * k} strokeWidth={0.14} {...D} />
+        <rect className="i" x={R + 0.95 * k} y={-2.3 * k} width={2.6 * k} height={4.6 * k} rx={0.3} strokeWidth={0.18} {...D} />
+        {Array.from({ length: 7 }, (_, i) => (
+          <line key={i} className="i" x1={R + 1.15 * k} y1={(-1.74 + i * 0.58) * k} x2={R + 3.35 * k} y2={(-1.74 + i * 0.58) * k} strokeWidth={0.07} {...F} />
+        ))}
+        {spec.crownGuards && <path className="i" d={`M${R * 0.94} ${5.6 * k}L${R + 2.4} ${3.9 * k}L${R + 2.9} ${2.7 * k}M${R * 0.94} ${-5.6 * k}L${R + 2.4} ${-3.9 * k}L${R + 2.9} ${-2.7 * k}`} strokeWidth={0.18} {...D} />}
+        {/* the dial, each as it is made */}
+        {style === 'sector' && (
+          <g>
+            <circle className="i" r={15.86 * k} strokeWidth={0.06} {...D} />
+            <circle className="i" r={15.1 * k} strokeWidth={0.06} {...D} />
+            <circle className="i" r={14.7 * k} strokeWidth={0.1} {...D} />
+            <circle className="i" r={11.35 * k} strokeWidth={0.1} {...D} />
+            <circle className="i" r={4.7 * k} strokeWidth={0.06} {...D} />
+            {Array.from({ length: 60 }, (_, i) => (
+              <line key={i} className="i" x1={at(15.1, i * 6)[0]} y1={at(15.1, i * 6)[1]} x2={at(15.86, i * 6)[0]} y2={at(15.86, i * 6)[1]} strokeWidth={i % 5 === 0 ? 0.16 : 0.05} {...F} />
+            ))}
+            {Array.from({ length: 12 }, (_, h) =>
+              h === 0 || h === 6 ? null : <line key={h} className="i" x1={at(4.7, h * 30)[0]} y1={at(4.7, h * 30)[1]} x2={at(11.35, h * 30)[0]} y2={at(11.35, h * 30)[1]} strokeWidth={0.06} {...D} />,
+            )}
+            {[0, 90, 270].map((d) => (
+              <line key={d} className="i" x1={at(0.9, d)[0]} y1={at(0.9, d)[1]} x2={at(4.7, d)[0]} y2={at(4.7, d)[1]} strokeWidth={0.06} {...D} />
+            ))}
+            {[1, 3, 5, 7, 9, 11].map((h) => (
+              <path key={h} className="i fill-paper" d={bar(11.95, 14.12, 0.5, h * 30)} strokeWidth={0.07} {...D} />
+            ))}
+            {/* the seconds, sunk: lip, floor, and their own track */}
+            <circle className="i fill-paper" cx={0} cy={-8.6 * k} r={4.3 * k} strokeWidth={0.12} {...D} />
+            <circle className="i" cx={0} cy={-8.6 * k} r={4.14 * k} strokeWidth={0.05} {...D} />
+            <circle className="i" cx={0} cy={-8.6 * k} r={3.48 * k} strokeWidth={0.05} {...D} />
+            {Array.from({ length: 12 }, (_, i) => {
+              const a = (i / 12) * TAU;
+              return <line key={i} className="i" x1={Math.cos(a) * 3.15 * k} y1={-8.6 * k + Math.sin(a) * 3.15 * k} x2={Math.cos(a) * 3.96 * k} y2={-8.6 * k + Math.sin(a) * 3.96 * k} strokeWidth={0.07} {...F} />;
+            })}
+            <line className="s" x1={0} y1={(-8.6 + 1.25) * k} x2={0} y2={(-8.6 - 3.62) * k} strokeWidth={0.12} transform={`rotate(-38 0 ${-8.6 * k})`} {...D} />
+            <circle className="fill-s" cx={0} cy={-8.6 * k} r={0.34 * k} {...F} />
+          </g>
+        )}
+        {style === 'classic' && (
+          <g>
+            {Array.from({ length: 60 }, (_, i) => (
+              <circle key={i} className="fill-i" cx={at(15.3, i * 6)[0]} cy={at(15.3, i * 6)[1]} r={(i % 5 === 0 ? 0.2 : 0.1) * k} {...F} />
+            ))}
+            {Array.from({ length: 11 }, (_, i) => {
+              const h = i + 1;
+              const hl = h % 3 === 0 ? 1.55 : 1.25;
+              return <path key={h} className="i fill-paper" d={bar(12.55 - hl, 12.55 + hl, 0.54, h * 30)} strokeWidth={0.07} {...D} />;
+            })}
+          </g>
+        )}
+        {style === 'diver' && (
+          <g>
+            {Array.from({ length: 120 }, (_, i) => {
+              const a = (i / 120) * TAU;
+              return <line key={i} className="i" x1={Math.cos(a) * (R - 0.15)} y1={Math.sin(a) * (R - 0.15)} x2={Math.cos(a) * (R + 0.4)} y2={Math.sin(a) * (R + 0.4)} strokeWidth={0.09} {...F} />;
+            })}
+            {Array.from({ length: 16 }, (_, i) => (
+              <line key={i} className="i" x1={at(18.2, i * 6)[0]} y1={at(18.2, i * 6)[1]} x2={at(18.8, i * 6)[0]} y2={at(18.8, i * 6)[1]} strokeWidth={0.1} {...F} />
+            ))}
+            <path className="s" d={ptsToPath([at(16.8, 0), [at(18.75, 0)[0] + 1.25 * k, at(18.75, 0)[1]], [at(18.75, 0)[0] - 1.25 * k, at(18.75, 0)[1]]])} strokeWidth={0.1} {...D} />
+            {Array.from({ length: 60 }, (_, i) => (
+              <line key={i} className="i" x1={at(14.9, i * 6)[0]} y1={at(14.9, i * 6)[1]} x2={at(15.9, i * 6)[0]} y2={at(15.9, i * 6)[1]} strokeWidth={0.07} {...F} />
+            ))}
+            {Array.from({ length: 12 }, (_, h) => {
+              const c = at(12.4, h * 30);
+              if (h === 0) return <path key={h} className="i fill-paper" d={ptsToPath([at(10.9, 0), [c[0] + 1.45 * k, at(13.7, 0)[1]], [c[0] - 1.45 * k, at(13.7, 0)[1]]])} strokeWidth={0.09} {...D} />;
+              if (h % 3 === 0) return <path key={h} className="i fill-paper" d={bar(10.9, 13.9, 1.24, h * 30)} strokeWidth={0.09} {...D} />;
+              return <circle key={h} className="i fill-paper" cx={c[0]} cy={c[1]} r={0.98 * k} strokeWidth={0.09} {...D} />;
+            })}
+          </g>
+        )}
+        {style === 'gmt' && (
+          <g>
+            <circle className="i" r={14.75 * k} strokeWidth={0.06} {...D} />
+            <circle className="i" r={8.9 * k} strokeWidth={0.05} {...D} />
+            {Array.from({ length: 60 }, (_, i) => (
+              <line key={i} className="i" x1={at(14.75, i * 6)[0]} y1={at(14.75, i * 6)[1]} x2={at(i % 5 === 0 ? 15.9 : 15.5, i * 6)[0]} y2={at(i % 5 === 0 ? 15.9 : 15.5, i * 6)[1]} strokeWidth={i % 5 === 0 ? 0.16 : 0.06} {...F} />
+            ))}
+            {Array.from({ length: 24 }, (_, i) => (
+              <line key={i} className="i" x1={at(8.9, i * 15)[0]} y1={at(8.9, i * 15)[1]} x2={at(9.35, i * 15)[0]} y2={at(9.35, i * 15)[1]} strokeWidth={0.05} {...F} />
+            ))}
+            {Array.from({ length: 12 }, (_, i) => (
+              <circle key={i} className="fill-i" cx={at(18.0, i * 30 + 15)[0]} cy={at(18.0, i * 30 + 15)[1]} r={0.24 * k} {...F} />
+            ))}
+            {Array.from({ length: 12 }, (_, h) => {
+              const hl = h % 3 === 0 ? 1.55 : 1.25;
+              if (h === 0) return [0.42, -0.42].map((o) => <path key={o} className="i fill-paper" d={bar(12.55 - hl, 12.55 + hl, 0.54, 0, o)} strokeWidth={0.07} {...D} />);
+              return <path key={h} className="i fill-paper" d={bar(12.55 - hl, 12.55 + hl, 0.54, h * 30)} strokeWidth={0.07} {...D} />;
+            })}
+          </g>
+        )}
+        {/* hands, in red chalk, at eight minutes past ten */}
+        {spec.gmtHand && (
+          <path className="s" d={hand([[-0.16, -1.4], [0.16, -1.4], [0.16, 11.1], [0.95, 11.1], [0, 13.4], [-0.95, 11.1], [-0.16, 11.1]], 261)} strokeWidth={0.1} {...D} />
+        )}
+        <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 9.9 : 9.6, 1.02), hourDeg)} strokeWidth={0.12} {...D} />
+        <path className="s fill-paper" d={hand(shape(spec.hands === 'leaf' ? 14.7 : 14.3, 0.78), minDeg)} strokeWidth={0.12} {...D} />
+        {spec.seconds === 'centre' && <line className="s" x1={at(-4.2, 219)[0]} y1={at(-4.2, 219)[1]} x2={at(15.4, 219)[0]} y2={at(15.4, 219)[1]} strokeWidth={0.09} {...D} />}
+        {spec.seconds === 'centre' && diver && <circle className="s fill-paper" cx={at(10.4, 219)[0]} cy={at(10.4, 219)[1]} r={0.82 * k} strokeWidth={0.09} {...D} />}
+        <circle className="s fill-paper" r={0.95 * k} strokeWidth={0.1} {...D} />
+        <circle className="fill-s" r={0.3 * k} {...F} />
         {/* elevation, seen from the crown */}
-        <g transform={`translate(${ex} 0)`}>
-          <path
-            className="i"
-            d={`M${zBot + 1.3} ${-R * 0.94}V${R * 0.94}M${zTop - 1.4} ${-R}V${R}M${zBot + 1.3} ${R * 0.94}L${zTop - 1.4} ${R}M${zBot + 1.3} ${-R * 0.94}L${zTop - 1.4} ${-R}`}
-            strokeWidth={0.18}
-            {...D}
-          />
-          <path className="i" d={`M${zTop - 1.4} ${R * 0.985}Q${zTop * 0.2} ${R + (L - R) * 0.5} ${zBot + 1.6} ${L}L${zBot + 0.4} ${L - 0.5}L${zBot + 1.3} ${R * 0.7}`} strokeWidth={0.18} {...D} />
-          <path className="i" d={`M${zTop - 1.4} ${-R * 0.985}Q${zTop * 0.2} ${-R - (L - R) * 0.5} ${zBot + 1.6} ${-L}L${zBot + 0.4} ${-L + 0.5}L${zBot + 1.3} ${-R * 0.7}`} strokeWidth={0.18} {...D} />
-          <path className="i" d={`M${zTop - 1.4} ${R * 0.96}H${zTop - 0.3}V${-R * 0.96}H${zTop - 1.4}`} strokeWidth={0.14} {...D} />
-          <path className="i" d={`M${zTop - 0.3} ${R * 0.84}Q${zTop + (diver ? 0.5 : 1.3)} 0 ${zTop - 0.3} ${-R * 0.84}`} strokeWidth={0.12} {...D} />
-          <path className="i" d={`M${zBot + 1.3} ${R * 0.9}L${zBot} ${R * 0.8}V${-R * 0.8}L${zBot + 1.3} ${-R * 0.9}`} strokeWidth={0.14} {...D} />
-          <circle className="i" cx={(zTop + zBot) / 2 + 1} cy={0} r={2.7 * k} strokeWidth={0.18} {...D} />
-          <circle className="i" cx={(zTop + zBot) / 2 + 1} cy={0} r={1.0 * k} strokeWidth={0.1} {...D} />
+        <g transform={`translate(${tx} 0)`}>
+          <path className="i" d={`${half(1)}${half(-1)}M${ez(-6.98)} ${-17.4 * k}V${17.4 * k}`} strokeWidth={0.17} {...D} />
+          <path className="i" d={edges} strokeWidth={0.08} {...D} />
+          <path className="i" d={`M${ez(2.72)} ${16.72 * k}Q${ez(diver ? 3.5 : 4.32)} 0 ${ez(2.72)} ${-16.72 * k}`} strokeWidth={0.11} {...D} />
+          <circle className="i fill-paper" cx={ez(-1.2)} cy={0} r={2.3 * k} strokeWidth={0.17} {...D} />
+          <circle className="i" cx={ez(-1.2)} cy={0} r={1.55 * k} strokeWidth={0.08} {...D} />
+          {Array.from({ length: 30 }, (_, i) => {
+            const a = (i / 30) * TAU;
+            return <line key={i} className="i" x1={ez(-1.2) + Math.cos(a) * 1.9 * k} y1={Math.sin(a) * 1.9 * k} x2={ez(-1.2) + Math.cos(a) * 2.3 * k} y2={Math.sin(a) * 2.3 * k} strokeWidth={0.06} {...F} />;
+          })}
         </g>
         {/* dimensions in red chalk */}
         <path className="s" d={`M${-R} ${-dimY}H${R}M${-R} ${-dimY - 1}V${-dimY + 1}M${R} ${-dimY - 1}V${-dimY + 1}`} strokeWidth={0.12} {...D} />
         <path className="s" d={`M${ex + zTop + 3.6} ${-L}V${L}M${ex + zTop + 2.6} ${-L}H${ex + zTop + 4.6}M${ex + zTop + 2.6} ${L}H${ex + zTop + 4.6}`} strokeWidth={0.12} {...D} />
-        <path className="s" d={`M${ex + zBot} ${-L - 3.6}H${ex + zTop + 0.6}M${ex + zBot} ${-L - 4.6}V${-L - 2.6}M${ex + zTop + 0.6} ${-L - 4.6}V${-L - 2.6}`} strokeWidth={0.12} {...D} />
+        <path className="s" d={`M${ex + zBot} ${-L - 3.6}H${ex + zTop}M${ex + zBot} ${-L - 4.6}V${-L - 2.6}M${ex + zTop} ${-L - 4.6}V${-L - 2.6}`} strokeWidth={0.12} {...D} />
         <path className="s" d={`M${-lw} ${-L - 3.6}H${lw}M${-lw} ${-L - 4.6}V${-L - 2.6}M${lw} ${-L - 4.6}V${-L - 2.6}`} strokeWidth={0.12} {...D} />
       </Up>
+      {/* lettering on the dial and bezel */}
+      {style === 'sector' && [0, 2, 4, 8, 10].map((h) => numeral(ROMAN[h], 13.02, h * 30, h === 0 ? 2.3 : 2.05, h > 3 && h < 9))}
+      {style === 'classic' && numeral('XII', 12.3, 0, 2.9)}
+      {diver && [10, 20, 30, 40, 50].map((m) => numeral(String(m), 17.75, m * 6, 1.7))}
+      {gmt && Array.from({ length: 12 }, (_, i) => numeral(String(i === 0 ? 24 : i * 2), 18.0, i * 30, 1.45))}
       <text {...F} className="dim" x={0} y={dimY - 1.3} fontSize={2.1} textAnchor="middle">
         ∅ {String(spec.diameter).replace('.', ',')}
       </text>
       <text {...F} className="dim" x={ex + zTop + 5.4} y={0.7} fontSize={2.1} transform={`rotate(-90 ${ex + zTop + 5.4} 0.7)`} textAnchor="middle">
         {String(spec.lugToLug).replace('.', ',')}
       </text>
-      <text {...F} className="dim" x={ex + (zTop + zBot) / 2 + 0.3} y={L + 7.6} fontSize={2.1} textAnchor="middle">
+      <text {...F} className="dim" x={ex} y={L + 7.6} fontSize={2.1} textAnchor="middle">
         {String(spec.thickness).replace('.', ',')}
       </text>
       <text {...F} className="dim" x={0} y={L + 7.6} fontSize={2.1} textAnchor="middle">

@@ -27,8 +27,8 @@ export const IMAGES = {
 
 // A source is the name of an image above, or `file:` and a path to a local frame (uploaded first).
 export const VIDEOS = {
+  'film-banco': ['file:scripts/.tmp/hf/photo-banco.png', 'Locked-off macro shot at a watchmaker\'s bench. The hand holding the tweezers lowers them very slowly a few millimetres towards the movement and holds; the gilt balance wheel swings rapidly back and forth beneath its bridge; a soft band of window light drifts slowly across the striped gilt bridges. Everything else stays perfectly still: the screws, the jewels, the engraved lettering and the steel case do not move or change. Slow, calm, precise, no camera movement.'],
   'film-calibro': ['file:scripts/.tmp/hf/calibro-film-src.png', 'Locked-off extreme macro shot of a watch movement. The gilt balance wheel swings rapidly back and forth beneath its bridge and the blued hairspring breathes in and out; a soft band of window light drifts very slowly across the striped gilt bridges. Everything else stays perfectly still: the screws, the jewels, the engraved lettering and the steel case do not move or change. Calm, precise, no camera movement.'],
-  'film-hands': ['bottega-hands', 'Locked-off macro shot. The tweezers lower the golden wheel very slowly toward the movement and hold. Inside the movement the small balance wheel swings back and forth. Dust motes drift through the window light. Slow, calm, no camera shake.'],
   'film-bluing': ['bottega-bluing', 'Locked-off macro shot. The small flame beneath the brass tray flickers gently, a faint heat shimmer rises, the steel screws deepen slowly towards blue. Slow, calm, no camera movement.'],
 };
 

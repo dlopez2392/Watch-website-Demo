@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { prefersReducedMotion } from '../lib/env';
-import { PlateSection } from '../plates/plates';
+import { PlateFinish } from '../plates/plates';
 import { Loop, Pic } from './Media';
 
 const BLUING: [number, string, string][] = [
@@ -90,9 +90,9 @@ export default function Bottega() {
   return (
     <section className="bottega" id="bottega" data-tone="dark" aria-labelledby="bottega-h">
       <div className="film">
-        <video ref={video} muted loop playsInline preload="none" poster="/video/film-hands-poster.webp" aria-label="Film at the bench: a watchmaker lowers a wheel into a movement with tweezers, in window light.">
-          <source src="/video/film-hands.webm" type="video/webm" />
-          <source src="/video/film-hands.mp4" type="video/mp4" />
+        <video ref={video} muted loop playsInline preload="none" poster="/video/film-banco-poster.webp" aria-label="Film at the bench: the Calibro V.31 in its case on a worn leather pad, its balance swinging, a watchmaker's tweezers lowering towards it in window light.">
+          <source src="/video/film-banco.webm" type="video/webm" />
+          <source src="/video/film-banco.mp4" type="video/mp4" />
         </video>
         <div className="film-shade" aria-hidden="true" />
         <div className="wrap film-copy">
@@ -171,8 +171,14 @@ export default function Bottega() {
         </dl>
       </div>
 
-      <figure className="bottega-plate" aria-hidden="true">
-        <PlateSection dark />
+      <figure className="bottega-plate">
+        <div className="plate-scroll" tabIndex={0} role="group" aria-label="Section through a bridge; slide to read it">
+          <PlateFinish dark />
+        </div>
+        <figcaption>
+          <span className="label">Tav. VII</span>
+          <span className="hand">smusso, côtes e svasatura: un ponte in sezione, scala 40 : 1</span>
+        </figcaption>
       </figure>
     </section>
   );

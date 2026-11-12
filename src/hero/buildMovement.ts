@@ -2,6 +2,9 @@ import * as THREE from 'three';
 import {
   AX,
   BALANCE_R,
+  BANKING,
+  HAIRSPRING,
+  MAINSPRING,
   COCK_FOOT,
   DEG,
   GEAR,
@@ -113,6 +116,8 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     b.mesh(extrudeZ(shapeOf(cover), 0.02, 0.3, 0.06), 'steelBrushed');
     const tops = [AX.third, AX.fourth, AX.escape, AX.pallet, AX.balance].map((p) => cyl(0.46, 0.0, 0.07, 16, p));
     b.mesh(merge(tops), 'ruby', { edges: false });
+    // banking pins, standing up from the plate either side of the lever
+    b.mesh(merge(BANKING.map((p) => cyl(0.11, zOf(LV.pallet + 0.12), -PLATE_T, 10, p))), 'steelPolished', { edges: false });
     b.mesh(lathe([{ pts: [[0.5, 0.08], [0.95, 0.08]] }, { pts: [[0.95, 0.08], [0.95, 0]] }], 24).translate(AX.balance[0], AX.balance[1], 0), 'chaton', { edges: false });
     b.proxy(cyl(PLATE_R, -PLATE_T, 0.3, 28));
   }
@@ -135,7 +140,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     b.mesh(wall, 'brass', { parent: g });
     const arbor = merge([cyl(1.15, zOf(1.55), zOf(0.22), 24), cyl(0.62, zOf(LV.keyless[1]), zOf(1.55), 16)]);
     b.mesh(arbor, 'steelPolished', { parent: g });
-    const spring = ribbon(spiral(1.35, 5.86, 10.5, fine ? 620 : 320), zOf(1.16), zOf(0.36), 0.12);
+    const spring = ribbon(spiral(MAINSPRING.r0, MAINSPRING.r1, MAINSPRING.turns, fine ? 1100 : 560), zOf(1.16), zOf(0.36), MAINSPRING.thick);
     b.mesh(spring, 'spring', { parent: g, edges: fine ? 60 : false });
     const lidG = b.group(g);
     const lid = lathe(
@@ -243,7 +248,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'hairspring', [0, 0, -19.5], [AX.balance[0] + 1.8, AX.balance[1] + 2.4, zOf(3.36)]);
     const g = at(b.group(), AX.balance);
     refs.hairspring = g;
-    const coil = spiral(0.58, 3.36, 11.5, fine ? 640 : 330, 0.4);
+    const coil = spiral(HAIRSPRING.r0, HAIRSPRING.r1, HAIRSPRING.turns, fine ? 640 : 330, 0.4);
     b.mesh(ribbon(coil, zOf(LV.hairspring[1]), zOf(LV.hairspring[0]), 0.048), 'blued', { parent: g, edges: fine ? 60 : false });
     const end = coil[coil.length - 1];
     b.mesh(cyl(0.3, zOf(3.62), zOf(3.24), 10, end), 'steelPolished', { parent: g, edges: false });

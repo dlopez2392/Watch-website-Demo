@@ -89,6 +89,7 @@
   transform-origin: right;
   transition: transform 0.7s var(--ease-slow);
 }
+.nav-links a[aria-current]::after,
 .nav-links a:hover::after,
 .nav-links a:focus-visible::after {
   transform: scaleX(1);

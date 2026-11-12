@@ -18,7 +18,8 @@ export const dist = (a: P2, b: P2): number => len(sub(a, b));
 export const angleTo = (a: P2, b: P2): number => Math.atan2(b[1] - a[1], b[0] - a[0]);
 export const lerp2 = (a: P2, b: P2, t: number): P2 => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
-export const PLATE_R = 15.3;
+/** 13¾ lignes: 31.0 mm across */
+export const PLATE_R = 15.5;
 export const PLATE_T = 1.8;
 
 export interface Gear {
@@ -166,6 +167,18 @@ export function spiral(r0: number, r1: number, turns: number, steps: number, pha
   return pts;
 }
 
+/** Length of a spiral, by summing its chords. */
+export function spiralLength(r0: number, r1: number, turns: number): number {
+  const pts = spiral(r0, r1, turns, Math.ceil(turns * 180));
+  let l = 0;
+  for (let i = 1; i < pts.length; i++) l += dist(pts[i - 1], pts[i]);
+  return l;
+}
+
+/** The two springs. The mainspring's turns are chosen so that its length is the 420 mm the watch is specified with. */
+export const MAINSPRING = { r0: 1.35, r1: 5.86, turns: 18.5, thick: 0.12 };
+export const HAIRSPRING = { r0: 0.58, r1: 3.36, turns: 11.5 };
+
 /**
  * Given gear A (N_a teeth, centre a, rotation phiA) return the rotation of gear B
  * (N_b teeth, centre b) such that a tooth of one meets a gap of the other on the
@@ -233,7 +246,7 @@ export type Seg =
   | { k: 'L'; p: P2 }
   | { k: 'A'; c: P2; r: number; a0: number; a1: number; ccw: boolean };
 
-const BR = PLATE_R - 0.3;
+const BR = PLATE_R - 0.5;
 const EDGE = -15 * DEG; // the line between barrel bridge and train bridge
 const GAP = 0.22;
 const onLine = (offset: number, r: number, dir: number): P2 => {
@@ -346,10 +359,33 @@ export const JEWELS: { at: P2; level: number; r: number; chaton: boolean }[] = [
   { at: balance, level: LV.cock[1], r: 0.55, chaton: true },
 ];
 
+/** Banking pins: the two stops the lever rests against between beats. */
+export const BANKING: P2[] = [1, -1].map((sg) => {
+  const rest = angleTo(pallet, balance);
+  return add(pallet, polar(2.05, rest + sg * (7.5 * DEG + Math.atan2(0.2 + 0.11, 2.05))));
+});
+
+/** Where the nineteen jewels are. */
+export const JEWEL_COUNT: [string, string, number][] = [
+  ['Bilanciere', 'two hole jewels, two endstones', 4],
+  ['Ellisse', 'the impulse pin', 1],
+  ['Levée', 'the two pallets', 2],
+  ['Àncora', 'the lever arbor', 2],
+  ['Scappamento', 'escape wheel', 2],
+  ['Secondi', 'fourth wheel', 2],
+  ['Mediana', 'third wheel', 2],
+  ['Centro', 'centre wheel', 2],
+  ['Bariletto', 'the barrel arbor', 2],
+];
+
+/** Overall height: mainplate, train, and the balance cock above it. */
+export const CALIBRE_HEIGHT = PLATE_T + LV.cock[1];
+
 export const CALIBRE_FACTS = {
   name: 'Calibro V.31',
-  diameter: '31.0 mm (13¾‴)',
-  height: '4.1 mm',
+  diameter: `${(PLATE_R * 2).toFixed(1)} mm (13¾‴)`,
+  height: `${CALIBRE_HEIGHT.toFixed(1)} mm`,
+  mainspring: Math.round(spiralLength(MAINSPRING.r0, MAINSPRING.r1, MAINSPRING.turns) / 10) * 10,
   frequency: '21,600 A/h · 3 Hz',
   reserve: '50 hours',
   jewels: 19,

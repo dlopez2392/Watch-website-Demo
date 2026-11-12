@@ -134,9 +134,12 @@ export default function Hero() {
           <p className="hero-time-en">The hands are set to your time.</p>
         </div>
 
-        <a className="hero-scroll label" href="#movimento" onClick={go('movimento')}>
+        <p className="hero-scroll label">
           <span>Scroll, part by part</span>
           <i aria-hidden="true" />
+        </p>
+        <a className="hero-skip label" href="#collezione" onClick={go('collezione')}>
+          Or go straight to the four watches <span aria-hidden="true">↓</span>
         </a>
       </div>
     </section>

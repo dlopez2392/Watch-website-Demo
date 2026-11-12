@@ -412,6 +412,20 @@ button {
   font-family: var(--sc);
   font-weight: 600;
 }
+/* lettering that crosses a line clears a little paper for itself */
+.plate-svg text.halo {
+  paint-order: stroke fill;
+  stroke: #efe4cc;
+  stroke-width: 0.34em;
+  stroke-linejoin: round;
+}
+.plate-svg text.num {
+  font-style: normal;
+  font-weight: 600;
+}
+.plate-svg.on-dark text.halo {
+  stroke: var(--midnight);
+}
 .plate-svg text.dim {
   font-family: var(--sans);
   font-style: normal;
@@ -419,9 +433,10 @@ button {
   letter-spacing: 0.06em;
   fill: #6b4f36;
 }
+/* a dash a little longer than the stroke: drawn out, a closed curve closes without a gap */
 .plate-svg [data-draw] {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
+  stroke-dasharray: 1.03 2;
+  stroke-dashoffset: 1.03;
 }
 .plate-svg [data-fade] {
   opacity: 0;

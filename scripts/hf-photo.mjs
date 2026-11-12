@@ -20,6 +20,7 @@ export const PHOTOS = {
   lungarno: `Turn this 3D render into a photorealistic studio product photograph of the same wristwatch. ${KEEP} The dial reads XII, VALDARNO, FIRENZE, LUNGARNO and Carica manuale. Make the materials real: a slim polished yellow-gold case with soft warm reflections of a tall window, a domed sapphire crystal with a faint reflection, an ivory lacquer dial with a pearl minute track, faceted applied gold baton indexes, two gold leaf hands, a dark chestnut calf strap with fine grain and tone-on-tone stitching. ${LIGHT}`,
   tirreno: `Turn this 3D render into a photorealistic studio product photograph of the same dive wristwatch. ${KEEP} The dial reads VALDARNO, FIRENZE, TIRRENO, 300 m · 30 bar and Automatico; the bezel reads 10, 20, 30, 40, 50 with a red triangle at twelve. Make the materials real: a brushed stainless-steel case with polished chamfers, a coin-edge bezel with a glossy midnight-blue ceramic insert, a flat sapphire crystal, a deep blue sunray lacquer dial, applied cream luminous markers in polished steel surrounds, sword hands, a midnight-blue sailcloth strap. ${LIGHT}`,
   doppiofuso: `Turn this 3D render into a photorealistic studio product photograph of the same travel wristwatch. ${KEEP} The dial reads VALDARNO, FIRENZE and DOPPIO FUSO with a small twenty-four-hour scale; the steel bezel is engraved with a twenty-four-hour scale. Make the materials real: a brushed and polished stainless-steel case, a circular-brushed steel bezel with engraved numerals filled in black, a domed sapphire crystal, a matte brown-black grained dial, faceted applied steel batons, polished steel hands and a fourth hand with a red arrow tip, a dark brown calf strap with fine grain and cream stitching. ${LIGHT}`,
+  banco: `Make a new photograph that contains this exact watch movement. The movement in its steel case, exactly as in the reference with every bridge, wheel, screw, jewel and engraved letter unchanged and legible, lies on a worn midnight-blue leather bench pad in a watchmaker's workshop. From the upper right a watchmaker's hand holds fine brass tweezers a few centimetres above the movement, about to touch the balance bridge; a loupe and a boxwood stick lie out of focus at the edge of the frame. Low three-quarter view, the movement in sharp focus in the right half of a wide frame, the left third dark and nearly empty. Soft north window light from the upper left, deep midnight-blue shadows, warm highlights on the gilt bridges, shallow depth of field, shot on a 100 mm macro lens, fine film grain, luxury watchmaking editorial photography.`,
   calibro: `Turn this 3D render into a photorealistic extreme macro photograph of the same hand-wound watch movement seen through the back of its steel case. ${KEEP} The engraving on the lower bridge reads CAL. V.31 · 19 RUBINI · N° 001 and VALDARNO FIRENZE, exactly as in the reference. Make the materials real: frosted gilt bridges with broad Geneva stripes and mirror-polished bevels, a pearled gilt mainplate, raspberry-red ruby jewels set in polished gold chatons, cornflower heat-blued screws with crisp slots sitting in polished countersinks, steel winding wheels with a sunray finish, a gilt balance wheel with a blued hairspring under its bridge. ${LIGHT}`,
 };
 
@@ -28,13 +29,16 @@ function curl(args) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Where each photograph starts from, when it is not the studio render of the same name, and its shape.
+const FROM = { banco: `${OUT}/photo-calibro.png` };
+const SHAPE = { calibro: '1:1', banco: '16:9' };
 const REFS = 'scripts/.tmp/refs';
 const names = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const force = process.argv.includes('--force');
 for (const n of names) if (!PHOTOS[n]) throw new Error(`unknown photograph "${n}": one of ${Object.keys(PHOTOS).join(', ')}`);
 
 async function photograph(name) {
-  const render = `${REFS}/${name}.png`;
+  const render = FROM[name] ?? `${REFS}/${name}.png`;
   const out = `${OUT}/photo-${name}.png`;
   const statePath = `${OUT}/photo-${name}.json`;
   if (existsSync(out) && !force) return console.log('kept', out);
@@ -44,7 +48,7 @@ async function photograph(name) {
     const up = JSON.parse(curl(['-X', 'POST', `${API}/files/generate-upload-url`, '-H', 'Content-Type: application/json', '-d', '{"content_type":"image/png"}']));
     const headers = Object.entries(up.upload_headers ?? { 'Content-Type': 'image/png' }).flatMap(([k, v]) => ['-H', `${k}: ${v}`]);
     execFileSync('curl', ['-sS', '--max-time', '180', '-X', 'PUT', up.upload_url, ...headers, '--data-binary', `@${render}`]);
-    const body = { prompt: PHOTOS[name], image_urls: [up.public_url], aspect_ratio: name === 'calibro' ? '1:1' : '3:4', resolution: '2k', quality: 'high', enhance_prompt: false };
+    const body = { prompt: PHOTOS[name], image_urls: [up.public_url], aspect_ratio: SHAPE[name] ?? '3:4', resolution: '2k', quality: 'high', enhance_prompt: false };
     const res = JSON.parse(curl(['-X', 'POST', `${API}${MODEL}`, '-H', 'Content-Type: application/json', '-d', JSON.stringify(body)]));
     if (!res.request_id) throw new Error(JSON.stringify(res).slice(0, 600));
     state.request_id = res.request_id;
@@ -67,4 +71,7 @@ async function photograph(name) {
   throw new Error(`${name}: timed out`);
 }
 
-await Promise.all((names.length ? names : Object.keys(PHOTOS)).map(photograph));
+// those made from another photograph wait for it
+const list = names.length ? names : Object.keys(PHOTOS);
+await Promise.all(list.filter((n) => !FROM[n]).map(photograph));
+await Promise.all(list.filter((n) => FROM[n]).map(photograph));

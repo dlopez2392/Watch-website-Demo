@@ -67,7 +67,7 @@ export const ANNOTATIONS: Record<PartId, Annotation> = {
   secondsHand: { it: 'Piccoli secondi', en: 'Small-seconds hand', note: 'Rides the fourth wheel directly: one turn each minute.' },
   dial: { it: 'Quadrante', en: 'Dial', note: 'Silvered brass, sector-ruled like a draughtsman’s chart; the seconds are sunk.' },
   mainplate: { it: 'Platina', en: 'Mainplate', note: 'Gilt and pearled. Every pivot is located from this one plate.' },
-  barrel: { it: 'Bariletto', en: 'Mainspring barrel', note: 'A coiled spring of 420 mm stores fifty hours of running.' },
+  barrel: { it: 'Bariletto', en: 'Mainspring barrel', note: 'Eighteen and a half turns of spring, 420 mm, store fifty hours of running.' },
   centreWheel: { it: 'Ruota di centro', en: 'Centre wheel', note: 'Turns once an hour and carries the minute hand.' },
   thirdWheel: { it: 'Ruota mediana', en: 'Third wheel', note: 'The intermediary, stepping the hour down towards the minute.' },
   fourthWheel: { it: 'Ruota dei secondi', en: 'Fourth wheel', note: 'One turn a minute. Its arbor is the seconds hand.' },
