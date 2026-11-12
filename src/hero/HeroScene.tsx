@@ -295,7 +295,8 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
 
     shadowOpacity.current = mix(0.24, 0.17, sPose) * smooth(0.1, 0.7, p);
     focus.current.distance = CAMERA_Z - q.v.z;
-    focus.current.strength = tier.level === 'high' ? mix(0, mix(19, 7, sPose), smooth(0.3, 0.9, p)) : 0;
+    // deep blur while the stack is open and tall; almost none on the finished watch, which should be read sharp
+    focus.current.strength = tier.level === 'high' ? mix(0, mix(19, 2.5, sPose), smooth(0.3, 0.9, p)) : 0;
 
     /* which part is being spoken about: the scroll's while descending, a quiet tour at rest */
     if (!frozen) {
