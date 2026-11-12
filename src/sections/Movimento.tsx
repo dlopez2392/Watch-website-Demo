@@ -10,6 +10,8 @@ interface PlateEntry {
   keys: [string, string, string][];
   art: ReactNode;
   wide?: boolean;
+  note: string;
+  mirror?: boolean;
 }
 
 const PLATES: PlateEntry[] = [
@@ -26,6 +28,7 @@ const PLATES: PlateEntry[] = [
       ['e', 'Ruota di scappamento', '15 teeth, steel'],
     ],
     art: <PlateTrain />,
+    note: 'il tempo, diviso per quattro',
   },
   {
     tav: 'Tav. III',
@@ -39,6 +42,7 @@ const PLATES: PlateEntry[] = [
       ['d', 'Disco', 'the roller, with its impulse pin'],
     ],
     art: <PlateEscapement />,
+    note: 'sei battiti al secondo',
   },
   {
     tav: 'Tav. IV',
@@ -51,6 +55,8 @@ const PLATES: PlateEntry[] = [
       ['c', 'Viti di regolazione', 'fourteen, in gold'],
     ],
     art: <PlateBalance />,
+    note: 'le spire si contano, non si misurano',
+    mirror: true,
   },
   {
     tav: 'Tav. V',
@@ -65,6 +71,7 @@ const PLATES: PlateEntry[] = [
       ['e', 'Cricco', 'the click'],
     ],
     art: <PlateWinding />,
+    note: 'trenta giri, ogni mattina',
     wide: true,
   },
 ];
@@ -115,6 +122,9 @@ export default function Movimento() {
               <figure className="plate-art" data-reveal>
                 {p.art}
                 <figcaption className="label">{p.tav}</figcaption>
+                <p className="plate-note hand" aria-hidden="true">
+                  {p.mirror ? <span className="mirror">{p.note}</span> : p.note}
+                </p>
               </figure>
               <div className="plate-text">
                 <p className="numeral" data-reveal>

@@ -66,6 +66,16 @@
   left: 1.2rem;
   color: var(--sepia-soft);
 }
+.plate-note {
+  position: absolute;
+  right: clamp(1rem, 2.6vw, 2.4rem);
+  bottom: clamp(0.5rem, 1.6vw, 1.5rem);
+  font-size: clamp(1.35rem, 1.9vw, 2rem);
+  color: var(--sepia);
+  opacity: 0.78;
+  transform: rotate(-2.5deg);
+  pointer-events: none;
+}
 .plate-text {
   grid-column: 9 / -1;
 }
@@ -519,9 +529,9 @@
 .storia-plate {
   position: absolute;
   width: min(92vw, 1150px);
-  left: -24vw;
-  top: 3rem;
-  opacity: 0.55;
+  left: -30vw;
+  top: 1rem;
+  opacity: 0.36;
   pointer-events: none;
 }
 .storia-grid {
@@ -787,8 +797,7 @@
   font-size: clamp(4.6rem, 19.5vw, 21rem);
   line-height: 0.78;
   letter-spacing: -0.03em;
-  color: transparent;
-  -webkit-text-stroke: 1px rgba(205, 176, 122, 0.55);
+  color: rgba(205, 176, 122, 0.13);
   margin-left: -0.05em;
   user-select: none;
 }

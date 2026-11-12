@@ -331,7 +331,7 @@ export function PlateSection({ dark = false }: { dark?: boolean }) {
   const x0 = -8.6;
   const x1 = xBal + 6.8;
   return (
-    <PlateSvg mode="scrub" className={dark ? 'on-dark' : ''} viewBox={`${x0 - 1.4} -5.3 ${x1 - x0 + 2.4} 8.9`} label="Developed cross-section of the Calibro V.31: every arbor of the train between the mainplate and its bridges.">
+    <PlateSvg mode="scrub" className={dark ? 'on-dark' : ''} viewBox={`${x0 - 1.4} -5.3 ${x1 - x0 + 2.4} 9.9`} label="Developed cross-section of the Calibro V.31: every arbor of the train between the mainplate and its bridges.">
       <defs>
         <pattern id={dark ? 'hatch-d' : 'hatch'} width="0.34" height="0.34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="0.34" stroke={dark ? '#cdbf9f' : '#4a3423'} strokeWidth="0.035" />
@@ -391,7 +391,7 @@ export function PlateSection({ dark = false }: { dark?: boolean }) {
           [xBal, 'bilanciere'],
         ] as [number, string][]
       ).map(([x, t]) => (
-        <text key={t} {...F} x={x} y={2.5} fontSize={0.52} textAnchor="middle">
+        <text key={t} {...F} x={x} y={4.15} fontSize={0.56} textAnchor="middle">
           {t}
         </text>
       ))}
@@ -490,7 +490,7 @@ export function PlateCase({ spec }: { spec: WatchSpec }) {
       <text {...F} className="dim" x={0} y={L + 7.6} fontSize={2.1} textAnchor="middle">
         {spec.lugWidth}
       </text>
-      <text {...F} x={-R - 8} y={L + 7.9} fontSize={2.5}>
+      <text {...F} x={ex - 7.5} y={-L - 5.4} fontSize={2.5}>
         pianta e fianco
       </text>
     </PlateSvg>

@@ -5,13 +5,13 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: 'es2020',
-    chunkSizeWarningLimit: 1200,
+    // Three.js and the hero load as one lazy chunk, only for visitors who get the live hero.
+    chunkSizeWarningLimit: 1300,
     rollupOptions: {
       output: {
-        manualChunks: {
-          three: ['three'],
-          r3f: ['@react-three/fiber', '@react-three/drei'],
-          motion: ['gsap', 'lenis'],
+        manualChunks(id) {
+          if (id.includes('node_modules/gsap') || id.includes('node_modules/lenis')) return 'motion';
+          return undefined;
         },
       },
     },

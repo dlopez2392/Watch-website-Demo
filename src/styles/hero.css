@@ -484,6 +484,11 @@
   .hero-copy {
     top: 5.4rem;
   }
+  .hero-over {
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    white-space: nowrap;
+  }
   .hero-title {
     font-size: clamp(3.6rem, 19vw, 5.4rem);
   }
@@ -565,9 +570,9 @@
     position: relative;
     right: auto;
     top: auto;
-    width: 118%;
+    width: 150%;
     max-width: none;
-    margin: 21rem 0 2rem -9%;
+    margin: 17.5rem 0 1rem -27%;
     transform: none;
   }
   .hero[data-mode='static'] .hero-pin {

@@ -1,4 +1,4 @@
-import type { PartId } from './parts';
+import type { PartId } from './partsData';
 
 /** Shared, mutable hero state: written every frame by the scene, read by the DOM overlay without re-rendering React. */
 export const hero = {

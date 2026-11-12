@@ -439,6 +439,12 @@ button {
 .plate-svg.on-dark text {
   fill: #cdbf9f;
 }
+.plate-svg.on-dark .fill-paper {
+  fill: var(--midnight);
+}
+.plate-svg.on-dark .fill-s {
+  fill: #c75a3d;
+}
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal] {

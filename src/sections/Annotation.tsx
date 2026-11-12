@@ -1,5 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { ANNOTATIONS, PART_ORDER } from '../hero/parts';
+import { ANNOTATIONS, PART_ORDER } from '../hero/partsData';
 import { getVersion, hero, shownPart, subscribe } from '../hero/store';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];

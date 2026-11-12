@@ -28,7 +28,8 @@ export default function Nav() {
         }
         setDark(seen.size > 0);
       },
-      { rootMargin: '0px 0px -94% 0px' },
+      // a thin band at the height of the nav itself: the tone changes as a section edge passes behind it
+      { rootMargin: '-38px 0px -94% 0px' },
     );
     darks.forEach((d) => io.observe(d));
     return () => {

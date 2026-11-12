@@ -1,5 +1,5 @@
 import { useRef, useState, useSyncExternalStore } from 'react';
-import { ANNOTATIONS, PART_ORDER } from '../hero/parts';
+import { ANNOTATIONS, PART_ORDER } from '../hero/partsData';
 import { getVersion, setActive, setFocus, shownPart, subscribe } from '../hero/store';
 import { romanOf } from './Annotation';
 

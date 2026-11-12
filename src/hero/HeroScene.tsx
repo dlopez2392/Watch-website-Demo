@@ -242,7 +242,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     /* rotate about the middle of the stack, not the dial */
     const openness = introExplode * (1 - smooth(0.05, 0.7, s)) * k;
     offsetGroup.current.position.z = mix(1.5, 10, openness);
-    model.glass(mix(0.3, 1.5, smooth(0.3, 1, openness)));
+    model.glass(mix(0.28, 0.85, smooth(0.3, 1, openness)));
 
     shadowOpacity.current = 0.3 * smooth(0.1, 0.7, p);
     focus.current.distance = CAMERA_Z - q.v.z;

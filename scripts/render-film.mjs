@@ -10,8 +10,8 @@ const sharp = require('sharp');
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const FPS = 24;
 const SECONDS = 10;
-const W = 1440;
-const H = 810;
+const W = 1280;
+const H = 720;
 const tmp = 'scripts/.tmp/film';
 rmSync(tmp, { recursive: true, force: true });
 mkdirSync(tmp, { recursive: true });
@@ -23,6 +23,7 @@ page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.goto(`${BASE}/?studio=film&bg=0b1122`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__studio && window.__studio.ready, null, { timeout: 240000 });
 await page.waitForTimeout(6000);
+console.log('studio ready');
 const frames = FPS * SECONDS;
 const t0 = Date.now();
 for (let i = 0; i < frames; i++) {

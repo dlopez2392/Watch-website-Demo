@@ -15,10 +15,12 @@ export interface Tier {
 
 export function pickTier(width: number, height: number): Tier {
   const dprDevice = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+  // ?tier=high or ?tier=low forces a path, for testing
+  const forced = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tier') : null;
   const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
   const small = Math.min(width, height) < 700 || width < 900;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
-  if (coarse || small || cores <= 4) {
+  if (forced !== 'high' && (forced === 'low' || coarse || small || cores <= 4)) {
     return { level: 'low', dpr: Math.min(dprDevice, 1.5, Math.sqrt(1.5e6 / (width * height))), shadow: 1024, detail: 0, texture: 1024 };
   }
   return { level: 'high', dpr: Math.min(dprDevice, 2, Math.sqrt(3.4e6 / (width * height))), shadow: 2048, detail: 1, texture: 2048 };
@@ -107,7 +109,9 @@ void main() {
 /** Takes over rendering: scene to a multisampled float target, then one pass for depth of field and tone. */
 export function Pipeline({ tier, focus }: { tier: Tier; focus: React.MutableRefObject<FocusRef> }) {
   const { gl, size, scene, camera } = useThree();
-  const high = tier.level === 'high';
+  // the float target needs these; without them fall back to drawing straight to the canvas
+  const floatOk = gl.capabilities.isWebGL2 && (gl.extensions.has('EXT_color_buffer_float') || gl.extensions.has('EXT_color_buffer_half_float'));
+  const high = tier.level === 'high' && floatOk;
 
   const post = useMemo(() => {
     if (!high) return null;
@@ -171,6 +175,8 @@ export function Pipeline({ tier, focus }: { tier: Tier; focus: React.MutableRefO
 
   useFrame(() => {
     if (!post) {
+      // R3F puts its own filmic curve back whenever the canvas is reconfigured; ours must win at draw time
+      if (gl.toneMapping !== THREE.CustomToneMapping) gl.toneMapping = THREE.CustomToneMapping;
       gl.render(scene, camera);
       return;
     }
