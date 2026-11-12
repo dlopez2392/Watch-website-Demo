@@ -1,0 +1,197 @@
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 2.4rem;
+  padding: clamp(1.1rem, 2.6vh, 1.9rem) var(--gutter);
+  color: var(--ink-strong);
+  transition: color 0.6s var(--ease);
+}
+.nav::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 -1.4rem 0;
+  background: linear-gradient(to bottom, rgba(236, 224, 200, 0.94), rgba(236, 224, 200, 0));
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+  pointer-events: none;
+  z-index: -1;
+}
+.nav[data-scrolled='true']::before {
+  opacity: 1;
+}
+.nav[data-tone='dark'] {
+  color: #efe5cf;
+}
+.nav[data-tone='dark']::before {
+  background: linear-gradient(to bottom, rgba(17, 26, 51, 0.92), rgba(17, 26, 51, 0));
+}
+.nav-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-right: auto;
+  font-family: var(--sc);
+  font-weight: 600;
+  font-size: 1.12rem;
+  letter-spacing: 0.26em;
+  text-transform: lowercase;
+}
+.nav-mark svg {
+  width: 2.1rem;
+  height: 2.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+.nav-mark svg circle:nth-child(2) {
+  stroke-width: 0.5;
+}
+.nav-mark span {
+  opacity: 0;
+  transform: translateX(-0.5rem);
+  transition:
+    opacity 0.8s var(--ease),
+    transform 0.9s var(--ease);
+}
+.nav[data-scrolled='true'] .nav-mark span,
+.nav[data-open='true'] .nav-mark span {
+  opacity: 1;
+  transform: none;
+}
+.nav-links ul {
+  display: flex;
+  gap: clamp(1.4rem, 2.6vw, 2.8rem);
+}
+.nav-links a,
+.nav-reserve {
+  position: relative;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  padding: 0.5rem 0;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.1rem;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.7s var(--ease-slow);
+}
+.nav-links a:hover::after,
+.nav-links a:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+.nav-reserve {
+  padding: 0.62rem 1.15rem;
+  border: 1px solid currentColor;
+  transition:
+    background-color 0.6s var(--ease),
+    color 0.6s var(--ease);
+}
+.nav-reserve:hover,
+.nav-reserve:focus-visible {
+  background: var(--ink-strong);
+  color: var(--paper-light);
+  border-color: var(--ink-strong);
+}
+.nav[data-tone='dark'] .nav-reserve:hover,
+.nav[data-tone='dark'] .nav-reserve:focus-visible {
+  background: var(--gold-light);
+  border-color: var(--gold-light);
+  color: var(--midnight);
+}
+.nav-toggle {
+  display: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  position: relative;
+  margin-right: -0.5rem;
+}
+.nav-toggle i {
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  height: 1px;
+  background: currentColor;
+  transition: transform 0.7s var(--ease-slow);
+}
+.nav-toggle i:nth-of-type(1) {
+  top: 1.12rem;
+}
+.nav-toggle i:nth-of-type(2) {
+  top: 1.62rem;
+}
+.nav[data-open='true'] .nav-toggle i:nth-of-type(1) {
+  transform: translateY(0.25rem) rotate(28deg);
+}
+.nav[data-open='true'] .nav-toggle i:nth-of-type(2) {
+  transform: translateY(-0.25rem) rotate(-28deg);
+}
+.nav-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6rem var(--gutter) 3rem;
+  background-color: var(--paper);
+  background-image: url('/img/parchment.webp');
+  background-size: 960px 960px;
+  animation: sheet 0.7s var(--ease) both;
+}
+.nav-sheet[hidden] {
+  display: none;
+}
+@keyframes sheet {
+  from {
+    opacity: 0;
+  }
+}
+.nav-sheet li + li {
+  border-top: 1px solid var(--rule);
+}
+.nav-sheet a {
+  display: flex;
+  align-items: baseline;
+  gap: 1.2rem;
+  padding: 1.05rem 0;
+  font-size: clamp(2rem, 9vw, 3rem);
+  line-height: 1;
+  color: var(--ink-strong);
+}
+.nav-sheet .numeral {
+  width: 2.2rem;
+  font-size: 0.8rem;
+}
+.nav-sheet .hand {
+  margin-top: 2.6rem;
+  font-size: 2rem;
+}
+@media (max-width: 900px) {
+  .nav-links,
+  .nav-reserve {
+    display: none;
+  }
+  .nav-toggle {
+    display: block;
+  }
+}
+@media (min-width: 901px) {
+  .nav-sheet {
+    display: none !important;
+  }
+}

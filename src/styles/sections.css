@@ -1,0 +1,970 @@
+/* ============================================================ Il Movimento */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: clamp(4rem, 9vw, 8.5rem);
+}
+.facts > div {
+  padding: 1.5rem 1.25rem 1.6rem 0;
+}
+.facts > div + div {
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--rule-soft);
+}
+.facts dd {
+  margin-top: 0.5rem;
+  font-size: clamp(1.15rem, 1.5vw, 1.55rem);
+  line-height: 1.15;
+  color: var(--ink-strong);
+}
+
+.plates {
+  display: grid;
+  gap: clamp(5.5rem, 12vw, 11rem);
+}
+.plate {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2vw, 2rem);
+  align-items: center;
+}
+.plate-art {
+  grid-column: 1 / span 7;
+  position: relative;
+  padding: clamp(1.4rem, 3.4vw, 3.6rem);
+  background: rgba(244, 236, 218, 0.5);
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 0 rgba(255, 252, 240, 0.5) inset;
+}
+.plate-art::before,
+.plate-art::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--sepia-soft);
+  opacity: 0.7;
+}
+.plate-art::before {
+  top: 9px;
+  right: 9px;
+  border-left: 0;
+  border-bottom: 0;
+}
+.plate-art::after {
+  bottom: 9px;
+  left: 9px;
+  border-right: 0;
+  border-top: 0;
+}
+.plate-art figcaption {
+  position: absolute;
+  top: 1rem;
+  left: 1.2rem;
+  color: var(--sepia-soft);
+}
+.plate-text {
+  grid-column: 9 / -1;
+}
+.plate.is-flipped .plate-art {
+  grid-column: 6 / -1;
+  grid-row: 1;
+}
+.plate.is-flipped .plate-text {
+  grid-column: 1 / span 4;
+  grid-row: 1;
+}
+.plate-title {
+  margin-top: 0.6rem;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: clamp(2.2rem, 3.5vw, 3.5rem);
+  line-height: 1;
+  color: var(--ink-strong);
+}
+.plate-en {
+  margin-top: 0.55rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: lowercase;
+  color: var(--sepia);
+}
+.plate-text .body {
+  margin-top: 1.5rem;
+}
+.plate-keys {
+  margin-top: 2rem;
+  border-top: 1px solid var(--rule);
+}
+.plate-keys li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  column-gap: 0.4rem;
+  padding: 0.62rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+  align-items: baseline;
+}
+.plate-keys .k {
+  grid-row: span 2;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--sanguine);
+}
+.plate-keys .it {
+  font-style: italic;
+  font-size: 1.12rem;
+  line-height: 1.2;
+  color: var(--ink-strong);
+}
+.plate-keys .en {
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  color: var(--sepia);
+}
+
+.section-plate {
+  margin-top: clamp(6rem, 13vw, 12rem);
+}
+.section-plate svg {
+  width: 100%;
+}
+.section-plate figcaption {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 1.2rem;
+  margin-top: 1.4rem;
+}
+.section-plate .hand {
+  font-size: clamp(1.5rem, 2vw, 2.1rem);
+}
+
+/* ============================================================ La Collezione */
+
+.collezione {
+  padding-top: clamp(2rem, 5vw, 5rem);
+}
+.watches {
+  display: grid;
+  gap: clamp(6rem, 13vw, 12rem);
+}
+.watch {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2vw, 2rem);
+  align-items: center;
+}
+.watch-stage {
+  grid-column: 1 / span 7;
+  position: relative;
+  aspect-ratio: 15 / 16;
+}
+.watch-text {
+  grid-column: 9 / -1;
+}
+.watch.is-flipped .watch-stage {
+  grid-column: 6 / -1;
+  grid-row: 1;
+}
+.watch.is-flipped .watch-text {
+  grid-column: 1 / span 4;
+  grid-row: 1;
+}
+.watch-plate {
+  position: absolute;
+  left: 20%;
+  right: -11%;
+  top: 6%;
+  opacity: 0.62;
+  pointer-events: none;
+}
+.watch.is-flipped .watch-plate {
+  left: -11%;
+  right: 20%;
+}
+.watch.is-flipped .watch-plate svg {
+  transform: scaleX(1);
+}
+.watch-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  scale: 1.2;
+  transition-duration: 2s, 2.2s;
+}
+.watch-numeral {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-family: var(--serif);
+  font-size: clamp(3rem, 6vw, 6rem);
+  line-height: 0.8;
+  color: var(--sanguine);
+  opacity: 0.85;
+}
+.watch.is-flipped .watch-numeral {
+  left: auto;
+  right: 0;
+}
+.watch-name {
+  margin-top: 0.9rem;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.6rem, 4.6vw, 4.6rem);
+  line-height: 0.96;
+  letter-spacing: -0.012em;
+  color: var(--ink-strong);
+}
+.watch-line {
+  margin-top: 0.6rem;
+  font-style: italic;
+  font-size: clamp(1.25rem, 1.6vw, 1.6rem);
+  color: var(--sanguine);
+}
+.watch-text .body {
+  margin-top: 1.4rem;
+}
+.spec {
+  width: 100%;
+  margin-top: 2rem;
+  border-collapse: collapse;
+  border-top: 1px solid var(--rule);
+}
+.spec th,
+.spec td {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--rule-soft);
+  text-align: left;
+  vertical-align: baseline;
+}
+.spec th {
+  width: 34%;
+  font-size: 0.64rem;
+  padding-right: 1rem;
+}
+.spec td {
+  font-size: 1.06rem;
+  line-height: 1.3;
+  color: var(--ink-strong);
+}
+.watch-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 1.9rem;
+}
+.watch-price {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: clamp(1.7rem, 2.2vw, 2.2rem);
+  line-height: 1;
+  color: var(--ink-strong);
+}
+
+/* ============================================================ La Bottega */
+
+.bottega {
+  position: relative;
+  background: var(--midnight);
+  color: #efe5cf;
+  overflow: hidden;
+}
+.bottega .label {
+  color: #a9a48f;
+}
+.bottega .display,
+.bottega .lede {
+  color: #f4ecd9;
+}
+.bottega .body,
+.bottega .craft-body {
+  color: #d9d0bb;
+}
+.bottega .numeral {
+  color: #d97d5f;
+}
+.bottega .kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 1.1rem;
+}
+.film {
+  position: relative;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
+  max-height: 1100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background: #0b1122 url('/video/bottega-poster.webp') center / cover no-repeat;
+}
+.film video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.film-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(17, 26, 51, 1) 0%, rgba(17, 26, 51, 0.55) 26%, rgba(17, 26, 51, 0) 58%),
+    linear-gradient(to right, rgba(11, 17, 34, 0.72) 0%, rgba(11, 17, 34, 0) 58%),
+    linear-gradient(to bottom, rgba(11, 17, 34, 0.5) 0%, rgba(11, 17, 34, 0) 22%);
+}
+.film-copy {
+  position: relative;
+}
+.film-copy .display {
+  margin-top: 1.2rem;
+  max-width: 12ch;
+  font-size: clamp(3rem, 7vw, 7rem);
+}
+.film-foot {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  padding-top: clamp(2rem, 5vh, 4rem);
+  padding-bottom: clamp(1.6rem, 4vh, 3rem);
+}
+.film-foot .hand {
+  color: var(--gold-light);
+  font-size: clamp(1.5rem, 2vw, 2.1rem);
+}
+.film-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.7rem 0;
+  color: #d9d0bb !important;
+  white-space: nowrap;
+}
+.film-toggle i {
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  position: relative;
+}
+.film-toggle i::before,
+.film-toggle i::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+.film-toggle i[data-state='pause']::before,
+.film-toggle i[data-state='pause']::after {
+  width: 1px;
+  height: 9px;
+  background: currentColor;
+  transform: translate(-3px, -50%);
+}
+.film-toggle i[data-state='pause']::after {
+  transform: translate(2px, -50%);
+}
+.film-toggle i[data-state='play']::before {
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transform: translate(-30%, -50%);
+}
+.bottega-body {
+  padding-top: clamp(4rem, 9vw, 8rem);
+  padding-bottom: clamp(4rem, 8vw, 7rem);
+}
+.bottega-intro {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2vw, 2rem);
+  row-gap: 2.5rem;
+}
+.bottega-intro .lede {
+  grid-column: 1 / span 5;
+  max-width: 24ch;
+  font-size: clamp(1.6rem, 2.4vw, 2.5rem);
+  line-height: 1.2;
+}
+.bottega-cols {
+  grid-column: 7 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(1.4rem, 2.4vw, 2.6rem);
+}
+.crafts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.4rem, 3vw, 3.4rem);
+  margin-top: clamp(4.5rem, 9vw, 8rem);
+}
+.crafts li {
+  border-top: 1px solid rgba(205, 191, 159, 0.3);
+  padding-top: 1.6rem;
+}
+.craft-art {
+  width: 100%;
+  aspect-ratio: 5 / 3;
+  background: #0d1530;
+  border: 1px solid rgba(205, 191, 159, 0.18);
+}
+.craft-title {
+  margin-top: 1.5rem;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: clamp(1.9rem, 2.6vw, 2.6rem);
+  line-height: 1;
+  color: #f4ecd9;
+}
+.crafts .label {
+  margin-top: 0.5rem;
+}
+.craft-body {
+  margin-top: 1rem;
+  font-size: 1.08rem;
+  line-height: 1.5;
+}
+.bluing {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 7%;
+}
+.bluing-bar {
+  height: 34%;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+.bluing ol {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+}
+.bluing li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 0;
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: #a9a48f;
+}
+.bluing li i {
+  width: 1px;
+  height: 7px;
+  background: currentColor;
+}
+.bluing li em {
+  font-family: var(--serif);
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  opacity: 0;
+}
+.bluing li.is-target {
+  color: var(--gold-light);
+}
+.bluing li.is-target em {
+  opacity: 1;
+}
+.bottega-figures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: clamp(4.5rem, 9vw, 8rem);
+  border-top: 1px solid rgba(205, 191, 159, 0.3);
+}
+.bottega-figures > div {
+  padding: 1.6rem 1rem 0 0;
+}
+.bottega-figures > div + div {
+  padding-left: 1.6rem;
+  border-left: 1px solid rgba(205, 191, 159, 0.16);
+}
+.bottega-figures dd {
+  margin-top: 0.7rem;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2.6rem, 5vw, 5rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--gold-light);
+}
+.bottega-plate {
+  padding: 0 var(--gutter) clamp(3rem, 7vw, 6rem);
+  max-width: var(--max);
+  margin-inline: auto;
+  opacity: 0.5;
+}
+
+/* ============================================================ Storia */
+
+.storia {
+  overflow: hidden;
+}
+.storia-plate {
+  position: absolute;
+  width: min(92vw, 1150px);
+  left: -24vw;
+  top: 3rem;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.storia-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2vw, 2rem);
+  align-items: start;
+}
+.storia-head {
+  grid-column: 1 / span 5;
+  position: sticky;
+  top: 8.5rem;
+}
+.storia-head .kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 1.1rem;
+}
+.storia-head .display {
+  margin-top: 1.6rem;
+}
+.storia-head .lede {
+  margin-top: 1.8rem;
+  max-width: 26ch;
+}
+.storia-note {
+  margin-top: 2.6rem;
+  font-size: clamp(1.8rem, 2.6vw, 2.6rem);
+  transform: rotate(-3deg);
+  transform-origin: left;
+}
+.timeline {
+  grid-column: 7 / -1;
+}
+.timeline li {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 0.42fr) minmax(0, 1fr);
+  column-gap: clamp(1rem, 2.5vw, 2.6rem);
+  padding: clamp(1.7rem, 3vw, 2.6rem) 0;
+  border-top: 1px solid var(--rule);
+}
+.timeline li:last-child {
+  border-bottom: 1px solid var(--rule);
+}
+.timeline-year {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.timeline-year .sc {
+  font-size: clamp(1.25rem, 1.7vw, 1.7rem);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  color: var(--sanguine);
+}
+.timeline-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: clamp(1.6rem, 2.2vw, 2.2rem);
+  line-height: 1.05;
+  color: var(--ink-strong);
+}
+.timeline .body {
+  margin-top: 0.7rem;
+}
+
+/* ============================================================ Riserva */
+
+.enquire {
+  border-top: 1px solid var(--rule);
+}
+.enquire-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: clamp(1rem, 2vw, 2rem);
+  row-gap: 3.5rem;
+  align-items: start;
+}
+.enquire-head {
+  grid-column: 1 / span 5;
+}
+.enquire-head .kicker {
+  display: flex;
+  align-items: baseline;
+  gap: 1.1rem;
+}
+.enquire-head .display {
+  margin-top: 1.6rem;
+}
+.enquire-head .lede {
+  margin-top: 1.8rem;
+  max-width: 27ch;
+}
+.enquire-address {
+  margin-top: 2.8rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-style: normal;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  color: var(--ink-strong);
+  max-width: 22rem;
+}
+.enquire-address .label {
+  display: block;
+  margin-bottom: 0.7rem;
+}
+.enquire-address .hand {
+  display: block;
+  margin-top: 0.8rem;
+  font-size: 1.75rem;
+}
+.enquire-form,
+.enquire-thanks {
+  grid-column: 7 / -1;
+}
+.enquire-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem clamp(1.4rem, 2.6vw, 2.8rem);
+}
+.field.is-wide,
+.enquire-submit.is-wide {
+  grid-column: 1 / -1;
+}
+.field label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--sepia);
+}
+.field label span {
+  letter-spacing: 0.12em;
+  text-transform: none;
+  font-style: normal;
+  color: var(--sepia-soft);
+}
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.7rem 0 0.75rem;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1.3;
+  color: var(--ink-strong);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--sepia);
+  border-radius: 0;
+  -webkit-appearance: none;
+  appearance: none;
+  transition:
+    border-color 0.5s var(--ease),
+    box-shadow 0.5s var(--ease);
+}
+.field textarea {
+  resize: vertical;
+  min-height: 6.2rem;
+}
+.field ::placeholder {
+  color: var(--sepia-soft);
+  font-style: italic;
+  opacity: 1;
+}
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--sanguine);
+  box-shadow: 0 1px 0 var(--sanguine);
+}
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  outline: 1.5px solid var(--sanguine);
+  outline-offset: 6px;
+}
+.field [aria-invalid='true'] {
+  border-color: var(--sanguine);
+}
+.field-error {
+  margin-top: 0.5rem;
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--sanguine);
+}
+.select {
+  position: relative;
+}
+.select::after {
+  content: '';
+  position: absolute;
+  right: 0.2rem;
+  top: 55%;
+  width: 7px;
+  height: 7px;
+  border-right: 1px solid var(--ink-strong);
+  border-bottom: 1px solid var(--ink-strong);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.field select {
+  padding-right: 1.6rem;
+  cursor: pointer;
+}
+.enquire-submit {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+.enquire-small {
+  flex: 1;
+  min-width: 15rem;
+  font-style: italic;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  color: var(--sepia);
+}
+.enquire-thanks {
+  padding: clamp(2rem, 4vw, 3.6rem);
+  background: rgba(244, 236, 218, 0.55);
+  border: 1px solid var(--rule);
+}
+.enquire-thanks:focus {
+  outline: none;
+}
+.enquire-thanks .hand {
+  font-size: 3rem;
+  color: var(--sanguine);
+}
+.enquire-thanks .plate-title {
+  margin-top: 0.8rem;
+}
+.enquire-thanks .body {
+  margin: 1.2rem 0 2rem;
+}
+
+/* ============================================================ Footer */
+
+.footer {
+  background: var(--midnight);
+  color: #d9d0bb;
+  padding: clamp(4rem, 9vw, 8rem) 0 2.2rem;
+  overflow: hidden;
+}
+.footer .label {
+  color: #a9a48f;
+}
+.footer-mark {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(4.6rem, 19.5vw, 21rem);
+  line-height: 0.78;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(205, 176, 122, 0.55);
+  margin-left: -0.05em;
+  user-select: none;
+}
+.footer-grid {
+  display: grid;
+  grid-template-columns: 3fr 2fr 6fr;
+  gap: clamp(2rem, 5vw, 5.5rem);
+  margin-top: clamp(3.5rem, 7vw, 6.5rem);
+}
+.footer-text {
+  margin-top: 0.9rem;
+  font-size: 1.1rem;
+  line-height: 1.45;
+  max-width: 52ch;
+}
+.footer ul {
+  margin-top: 0.9rem;
+}
+.footer li a {
+  display: inline-block;
+  padding: 0.22rem 0;
+  font-size: 1.15rem;
+  color: #efe5cf;
+  background: linear-gradient(currentColor, currentColor) left 92% / 0 1px no-repeat;
+  transition: background-size 0.6s var(--ease);
+}
+.footer li a:hover,
+.footer li a:focus-visible {
+  background-size: 100% 1px;
+}
+.footer-base {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-top: clamp(3.5rem, 7vw, 6rem);
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(205, 191, 159, 0.22);
+}
+.footer-base .sc {
+  letter-spacing: 0.2em;
+  color: #a9a48f;
+}
+.footer-base .hand {
+  color: var(--gold-light);
+  font-size: 1.9rem;
+}
+.footer-base a:hover {
+  color: #efe5cf;
+}
+.footer :focus-visible,
+.bottega :focus-visible {
+  outline-color: var(--gold-light);
+}
+
+/* ============================================================ narrower screens */
+
+@media (max-width: 1000px) {
+  .plate-art,
+  .plate.is-flipped .plate-art,
+  .watch-stage,
+  .watch.is-flipped .watch-stage {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+  .plate-text,
+  .plate.is-flipped .plate-text,
+  .watch-text,
+  .watch.is-flipped .watch-text {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    margin-top: 2.4rem;
+    max-width: 38rem;
+  }
+  .watch-stage {
+    max-width: 40rem;
+    width: 100%;
+    margin-inline: auto;
+  }
+  .watch-plate,
+  .watch.is-flipped .watch-plate {
+    left: 14%;
+    right: -6%;
+  }
+  .bottega-intro .lede,
+  .bottega-cols {
+    grid-column: 1 / -1;
+  }
+  .storia-head,
+  .timeline,
+  .enquire-head,
+  .enquire-form,
+  .enquire-thanks {
+    grid-column: 1 / -1;
+  }
+  .storia-head {
+    position: static;
+    margin-bottom: 3.5rem;
+  }
+  .storia-plate {
+    width: 150vw;
+    left: -60vw;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .footer-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .facts {
+    grid-template-columns: 1fr 1fr;
+  }
+  .facts > div,
+  .facts > div + div {
+    padding: 1.1rem 0.8rem 1.15rem 0;
+    border-left: 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .facts > div:last-child {
+    border-bottom: 0;
+  }
+  .plate-art figcaption {
+    top: 0.6rem;
+    left: 0.75rem;
+  }
+  .section-plate figcaption {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.2rem;
+  }
+  .bottega-cols,
+  .crafts {
+    grid-template-columns: 1fr;
+  }
+  .crafts {
+    gap: 3rem;
+  }
+  .bottega-figures {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 1.6rem;
+  }
+  .bottega-figures > div:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .film {
+    height: 86svh;
+  }
+  .film-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .timeline li {
+    grid-template-columns: 1fr;
+    row-gap: 0.9rem;
+  }
+  .timeline-year {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  .enquire-form {
+    grid-template-columns: 1fr;
+  }
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+  .watch-foot {
+    align-items: center;
+  }
+  .spec th {
+    width: 38%;
+  }
+}

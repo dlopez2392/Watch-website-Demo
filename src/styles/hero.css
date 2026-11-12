@@ -1,0 +1,591 @@
+.hero {
+  position: relative;
+  height: 340vh;
+  --s: 0;
+}
+.hero[data-mode='static'] {
+  height: auto;
+}
+.hero-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+/* ---------- the drawing on the page ---------- */
+
+.page-drawing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: clamp(0.16, calc(1 - var(--s) * 1.7), 1);
+}
+.page-drawing svg {
+  position: absolute;
+  inset: 0;
+  fill: none;
+  stroke-linecap: round;
+}
+.page-drawing .c {
+  stroke: #8f7353;
+  stroke-width: 0.7;
+  opacity: 0.42;
+}
+.page-drawing .c.axis {
+  stroke-dasharray: none;
+  opacity: 0.6;
+}
+.page-drawing .i {
+  stroke: #5a412c;
+  stroke-width: 0.9;
+  opacity: 0.6;
+}
+.page-drawing .s {
+  stroke: var(--sanguine);
+  stroke-width: 0.9;
+  opacity: 0.8;
+}
+.page-drawing [data-draw] {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 3.4s var(--ease-slow) forwards;
+  animation-delay: calc(120ms + var(--n) * 90ms);
+}
+.page-drawing [data-tick] {
+  opacity: 0;
+  animation: fade-tick 1.6s ease forwards 1.8s;
+}
+.page-drawing text {
+  stroke: none;
+  fill: var(--sanguine);
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  opacity: 0;
+  animation: fade 1.6s ease forwards 2.4s;
+}
+.page-drawing .note {
+  position: absolute;
+  white-space: nowrap;
+  font-size: clamp(1.5rem, 1.9vw, 2.1rem);
+  color: var(--sepia);
+  opacity: 0;
+  animation: fade-note 2s ease forwards 2.8s;
+}
+.page-drawing .note-b {
+  transform: rotate(-3deg);
+}
+.page-drawing .note-a {
+  transform: rotate(-2deg);
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fade-tick {
+  to {
+    opacity: 0.42;
+  }
+}
+@keyframes fade-note {
+  to {
+    opacity: 0.72;
+  }
+}
+
+/* ---------- canvas ---------- */
+
+.hero-canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.6s var(--ease);
+  cursor: grab;
+}
+.hero[data-ready='true'] .hero-canvas {
+  opacity: 1;
+}
+.hero-canvas canvas {
+  display: block;
+}
+.hero-fallback {
+  position: absolute;
+  right: -2%;
+  top: 50%;
+  width: min(78%, 1250px);
+  height: auto;
+  transform: translateY(-46%);
+  pointer-events: none;
+}
+
+/* ---------- copy ---------- */
+
+.hero-copy {
+  position: absolute;
+  left: var(--gutter);
+  top: clamp(6.2rem, 15.5vh, 10.5rem);
+  max-width: min(36rem, 78vw);
+  pointer-events: none;
+  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+  transform: translate3d(0, calc(var(--s) * -90px), 0);
+}
+.hero-copy > * {
+  opacity: 0;
+  animation: rise 2s var(--ease) forwards;
+}
+.hero-copy > :nth-child(1) {
+  animation-delay: 0.25s;
+}
+.hero-copy > :nth-child(2) {
+  animation-delay: 0.45s;
+}
+.hero-copy > :nth-child(3) {
+  animation-delay: 0.75s;
+}
+.hero-copy > :nth-child(4) {
+  animation-delay: 1.05s;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.4rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-over {
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  color: var(--sepia);
+  font-weight: 600;
+}
+.hero-title {
+  margin-top: 0.9rem;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(4.2rem, 10.2vw, 10.4rem);
+  line-height: 0.86;
+  letter-spacing: -0.022em;
+  color: var(--ink-strong);
+  margin-left: -0.04em;
+}
+.hero-line {
+  margin-top: clamp(1.1rem, 2.4vh, 1.9rem);
+  font-size: clamp(1.35rem, 1.5vw + 0.8rem, 2rem);
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--ink);
+}
+.hero-copy .cta {
+  margin-top: clamp(1.5rem, 3.4vh, 2.5rem);
+  pointer-events: auto;
+}
+.hero[data-phase='closing'] .hero-copy .cta,
+.hero[data-phase='closed'] .hero-copy .cta {
+  pointer-events: none;
+}
+
+/* ---------- caption, hint, scroll cue ---------- */
+
+.hero-caption {
+  position: absolute;
+  right: calc(var(--gutter) + 3.2rem);
+  bottom: clamp(1.6rem, 5vh, 3.2rem);
+  text-align: right;
+  pointer-events: none;
+  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+}
+.hero-caption-title {
+  font-style: italic;
+  font-size: 1.3rem;
+  margin-top: 0.25rem;
+  color: var(--ink);
+}
+.hero-hint {
+  margin-top: 0.9rem;
+  color: var(--sepia-soft);
+  font-size: 0.62rem;
+}
+.hero-scroll {
+  position: absolute;
+  left: var(--gutter);
+  bottom: clamp(1.6rem, 5vh, 3.2rem);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+}
+.hero-scroll i {
+  display: block;
+  width: 4.5rem;
+  height: 1px;
+  background: var(--rule);
+  position: relative;
+  overflow: hidden;
+}
+.hero-scroll i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--sepia);
+  transform: translateX(-100%);
+  animation: cue 3.6s var(--ease-slow) infinite;
+}
+@keyframes cue {
+  55% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.hero[data-phase='closing'] .hero-scroll,
+.hero[data-phase='closed'] .hero-scroll,
+.hero[data-mode='static'] .hero-scroll i,
+.hero[data-mode='static'] .hero-closed {
+  pointer-events: none;
+}
+.hero[data-mode='static'] .hero-closed {
+  display: none;
+}
+
+/* ---------- the assembled watch: second state of the hero ---------- */
+
+.hero-closed {
+  position: absolute;
+  left: var(--gutter);
+  top: 50%;
+  width: min(30rem, 40vw);
+  transform: translate3d(0, calc(-50% + (1 - clamp(0, (var(--s) - 0.62) * 5, 1)) * 40px), 0);
+  opacity: clamp(0, calc((var(--s) - 0.62) * 6), 1);
+  pointer-events: none;
+}
+.hero-closed .display {
+  margin-top: 0.7rem;
+  font-size: clamp(3rem, 6.6vw, 6.6rem);
+}
+.hero-closed .lede {
+  margin-top: 1.4rem;
+}
+.hero-facts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 1rem 2.4rem;
+  margin-top: 2.2rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--rule);
+}
+.hero-facts dd {
+  margin-top: 0.3rem;
+  font-size: 1.12rem;
+  color: var(--ink-strong);
+}
+.hero-time {
+  margin-top: 2rem;
+  font-size: 2.2rem;
+  color: var(--sanguine);
+}
+.hero-time-en {
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--sepia);
+}
+
+/* ---------- annotation ---------- */
+
+.annotation {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.annotation-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+}
+.annotation[data-on='true'] .annotation-line {
+  opacity: 1;
+}
+.annotation-line path.halo {
+  stroke: rgba(243, 234, 214, 0.7);
+  stroke-width: 4;
+}
+.annotation-line path {
+  fill: none;
+  stroke: var(--sanguine);
+  stroke-width: 1.2;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1s var(--ease-slow) forwards 0.05s;
+}
+.annotation-line circle {
+  fill: var(--sanguine);
+  stroke: rgba(243, 234, 214, 0.85);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pip 0.8s var(--ease) both;
+}
+@keyframes pip {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+}
+.annotation-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: 19.5rem;
+  opacity: 0;
+  transition: opacity 0.5s var(--ease);
+  will-change: transform;
+}
+.annotation[data-on='true'] .annotation-label {
+  opacity: 1;
+}
+.annotation-inner {
+  position: relative;
+  padding-left: 2.1rem;
+  animation: note-in 1.1s var(--ease) both 0.35s;
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.6rem, 0);
+  }
+}
+.annotation-num {
+  position: absolute;
+  left: 0;
+  top: 0.62rem;
+  font-family: var(--serif);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  color: var(--sanguine);
+}
+.annotation-it {
+  font-family: var(--hand);
+  font-size: 2.5rem;
+  line-height: 0.9;
+  color: var(--ink-strong);
+  white-space: nowrap;
+}
+.annotation-en {
+  margin-top: 0.3rem;
+  font-family: var(--sc);
+  font-weight: 600;
+  font-size: 0.9rem;
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+  color: var(--sepia);
+}
+.annotation-note {
+  margin-top: 0.4rem;
+  font-style: italic;
+  font-size: 1.04rem;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+/* ---------- the ruler of parts ---------- */
+
+.parts-index {
+  position: absolute;
+  right: clamp(0.9rem, 2vw, 1.9rem);
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+}
+.hero[data-phase='closing'] .parts-index,
+.hero[data-phase='closed'] .parts-index {
+  visibility: hidden;
+}
+.parts-index ol {
+  display: flex;
+  flex-direction: column;
+}
+.parts-index button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 3.4rem;
+  height: clamp(13px, 2.15vh, 20px);
+}
+.parts-index .tick {
+  display: block;
+  width: 12px;
+  height: 1px;
+  background: var(--sepia);
+  opacity: 0.55;
+  transition:
+    width 0.6s var(--ease),
+    background-color 0.4s,
+    opacity 0.4s;
+}
+.parts-index li:nth-child(6n + 1) .tick {
+  width: 20px;
+}
+.parts-index .num {
+  position: absolute;
+  right: 44px;
+  font-family: var(--serif);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--sanguine);
+  opacity: 0;
+  transform: translateX(6px);
+  transition:
+    opacity 0.5s var(--ease),
+    transform 0.6s var(--ease);
+}
+.parts-index button.is-on .tick,
+.parts-index button:hover .tick,
+.parts-index button:focus-visible .tick {
+  width: 34px;
+  background: var(--sanguine);
+  opacity: 1;
+}
+.parts-index button.is-on .num,
+.parts-index button:hover .num,
+.parts-index button:focus-visible .num {
+  opacity: 1;
+  transform: none;
+}
+.parts-index button:focus-visible {
+  outline-offset: 0;
+}
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 760px) {
+  .hero {
+    height: 300vh;
+  }
+  .hero-copy {
+    top: 5.4rem;
+  }
+  .hero-title {
+    font-size: clamp(3.6rem, 19vw, 5.4rem);
+  }
+  .hero-line {
+    font-size: 1.24rem;
+  }
+  .hero-copy .cta {
+    padding: 0.9rem 1.2rem 0.9rem 1.3rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.2em;
+  }
+  .parts-index {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .hero-caption {
+    right: var(--gutter);
+    bottom: 1.2rem;
+  }
+  .hero-caption-title {
+    font-size: 1.05rem;
+  }
+  .hero-hint {
+    margin-top: 0.4rem;
+  }
+  .hero-scroll {
+    display: none;
+  }
+  .page-drawing .note {
+    display: none;
+  }
+  .hero-closed {
+    top: 5.2rem;
+    width: auto;
+    right: var(--gutter);
+    transform: translate3d(0, calc((1 - clamp(0, (var(--s) - 0.62) * 5, 1)) * 30px), 0);
+  }
+  .hero-closed .lede,
+  .hero-closed .hero-time-en {
+    display: none;
+  }
+  .hero-closed .display {
+    font-size: 3.2rem;
+  }
+  .hero-facts {
+    position: absolute;
+    top: calc(100svh - 12.5rem);
+    left: 0;
+    right: 0;
+    gap: 0.6rem 1.4rem;
+    margin-top: 0;
+  }
+  .hero-facts dd {
+    font-size: 0.98rem;
+  }
+  .hero-time {
+    margin-top: 0.4rem;
+    font-size: 1.7rem;
+  }
+  .annotation-label {
+    max-width: none;
+    width: calc(100vw - 36px);
+    padding: 0.85rem 1rem 0.9rem;
+    background: rgba(243, 234, 214, 0.9);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--rule);
+  }
+  .annotation-it {
+    font-size: 2.1rem;
+  }
+  .annotation-note {
+    font-size: 0.98rem;
+  }
+  .hero-fallback {
+    position: relative;
+    right: auto;
+    top: auto;
+    width: 118%;
+    max-width: none;
+    margin: 21rem 0 2rem -9%;
+    transform: none;
+  }
+  .hero[data-mode='static'] .hero-pin {
+    height: auto;
+    min-height: 100svh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-copy > *,
+  .page-drawing [data-draw],
+  .page-drawing [data-tick],
+  .page-drawing text,
+  .page-drawing .note {
+    animation-duration: 0.01s;
+    animation-delay: 0s;
+  }
+  .hero-scroll i::after {
+    animation: none;
+  }
+}
