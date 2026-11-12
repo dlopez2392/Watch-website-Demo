@@ -360,12 +360,12 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
     const runs = [
       { pts: [[17.4, zb], [18.5, zb + 0.6]] as P2[] },
       { pts: [[18.5, zb + 0.6], [18.5, CASE.bottom]] as P2[], mat: 1 },
-      { pts: [[18.5, CASE.bottom], [inner, CASE.bottom]] as P2[] },
-      { pts: [[inner, CASE.bottom], [inner, zb]] as P2[] },
+      { pts: [[18.5, CASE.bottom], [inner, CASE.bottom]] as P2[], mat: 3 },
+      { pts: [[inner, CASE.bottom], [inner, zb]] as P2[], mat: 3 },
       { pts: [[14.6, zb], [17.4, zb]] as P2[], mat: 2 },
     ];
     if (!spec.displayBack) runs.push({ pts: [[0.0001, zb], [14.6, zb]] as P2[], mat: 1 });
-    b.mesh(lathe(runs, segs), [b.mat(POL), b.mat(BRU), engraved]);
+    b.mesh(lathe(runs, segs), [b.mat(POL), b.mat(BRU), engraved, b.mat(gold ? 'goldSatin' : 'steelSatin')]);
     if (spec.displayBack) {
       const glass = new THREE.CircleGeometry(14.6, segs);
       glass.rotateX(Math.PI);

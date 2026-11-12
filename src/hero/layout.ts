@@ -38,9 +38,9 @@ export function computeLayout(width: number, height: number): HeroLayout {
   const needW = len * Math.abs(Math.cos(psi)) + wid * Math.abs(Math.sin(psi));
   const needH = len * Math.abs(Math.sin(psi)) + wid * Math.abs(Math.cos(psi));
   const availW = Ww * (portrait ? 0.98 : 0.82);
-  const availH = Hw * (portrait ? 0.6 : 0.88);
+  const availH = Hw * (portrait ? 0.53 : 0.88);
   const scale = Math.min(1.25, availW / needW, availH / needH);
-  const centre: [number, number, number] = [portrait ? Ww * 0.02 : Ww * 0.05, portrait ? -Hw * 0.15 : -Hw * 0.045, floatZ];
+  const centre: [number, number, number] = [portrait ? Ww * 0.02 : Ww * 0.05, portrait ? -Hw * 0.13 : -Hw * 0.045, floatZ];
   const perspA = CAMERA_Z / (CAMERA_Z - 46);
   const targetDia = portrait ? Ww * 0.68 : Math.min(Hw * 0.45, Ww * 0.3);
   const scaleAssembled = targetDia / (39 * perspA);

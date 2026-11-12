@@ -96,7 +96,8 @@ export function buildWatch(spec: WatchSpec, opts: { movement: boolean; detail: n
   };
 
   const glass = (k: number) => {
-    for (const m of ctx.glass) m.envMapIntensity = k;
+    // specular intensity, not envMapIntensity: the latter no longer applies to scene.environment
+    for (const m of ctx.glass) m.specularIntensity = k;
   };
 
   return { root, parts, byId, tick, pose, ink, glass, dispose };

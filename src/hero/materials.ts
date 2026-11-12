@@ -198,7 +198,6 @@ export function createMaterials(): MatLib {
         ior: 1.77,
         specularIntensity: 0.42,
         specularColor: new THREE.Color('#dfe6ff'),
-        envMapIntensity: 0.32,
         transparent: true,
         opacity: 0.05,
         depthWrite: false,

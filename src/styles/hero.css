@@ -514,6 +514,12 @@
   .hero-caption-title {
     font-size: 1.05rem;
   }
+  .hero-caption {
+    transition: opacity 0.5s var(--ease);
+  }
+  .annotation[data-on='true'] ~ .hero-caption {
+    opacity: 0;
+  }
   .hero-hint {
     margin-top: 0.4rem;
   }
