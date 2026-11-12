@@ -45,6 +45,10 @@ export default function Enquire() {
   };
 
   const chosen = WATCHES.find((w) => w.id === watch);
+  // the print beside the form follows the choice; "not sure yet" leaves the last one lying there
+  const lastShown = useRef('codice');
+  if (chosen) lastShown.current = chosen.id;
+  const shown = lastShown.current;
 
   return (
     <section className="section enquire" id="riserva" aria-labelledby="riserva-h">
@@ -68,6 +72,14 @@ export default function Enquire() {
             <br />
             <span className="hand">dal martedì al sabato, su appuntamento</span>
           </address>
+          <figure className="enquire-print" data-reveal style={{ ['--i' as string]: 4 }} aria-hidden="true">
+            <div className="enquire-print-stack">
+              {WATCHES.map((w) => (
+                <img key={w.id} src={`/img/${w.id}-900.webp`} width={900} height={1200} loading="lazy" decoding="async" alt="" data-on={w.id === shown} />
+              ))}
+            </div>
+            <figcaption className="hand">{WATCHES.find((w) => w.id === shown)?.name}</figcaption>
+          </figure>
         </header>
 
         {sent ? (
