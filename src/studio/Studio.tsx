@@ -16,7 +16,6 @@ import type { PartId } from '../hero/parts';
  * The studio is how the site photographs itself. Product stills, the workshop film and the
  * reduced-motion illustration are all rendered from the same parametric watch as the hero:
  *   /?studio=still&watch=tirreno&view=front
- *   /?studio=film            (frames are stepped from outside through window.__studio)
  *   /?studio=hero&intro=1&scroll=0
  */
 
@@ -33,7 +32,6 @@ const Y = new THREE.Vector3(0, 1, 0);
 const Z = new THREE.Vector3(0, 0, 1);
 const clock = { t: 0 };
 
-const EXTERIOR: PartId[] = ['crystal', 'bezel', 'hands', 'secondsHand', 'dial', 'crown', 'caseMiddle', 'caseback', 'strap', 'buckle'];
 
 function Still({ id, view }: { id: WatchId; view: string }) {
   const spec = watchById(id);
@@ -90,60 +88,6 @@ function Still({ id, view }: { id: WatchId; view: string }) {
   );
 }
 
-/** A slow macro pass over the escapement, bridge side up: the workshop film. */
-function Film() {
-  const spec = watchById('codice');
-  const { size, camera } = useThree();
-  const [model, setModel] = useState<WatchModel | null>(null);
-  const group = useRef<THREE.Group>(null);
-  const focus = useRef<FocusRef>({ distance: 120, strength: 0 });
-  const LOOP = 10;
-
-  useEffect(() => {
-    let m: WatchModel | null = null;
-    fontsReady().then(() => {
-      m = buildWatch(spec, { movement: true, detail: 1, textureSize: 1024 });
-      for (const p of m.parts) if (EXTERIOR.includes(p.id)) p.group.visible = false;
-      setModel(m);
-    });
-    return () => m?.dispose();
-  }, [spec]);
-
-  useFrame(() => {
-    if (!model || !group.current) return;
-    const t = clock.t;
-    // slow motion, six to one: ten seconds of film is ten beats of the escapement, so the loop closes exactly
-    model.tick(TEN_EIGHT + t / 6);
-    model.pose(() => 0, () => 0);
-    model.ink(() => 0, 1, size.width, size.height);
-    const g = group.current;
-    const a = (t / LOOP) * Math.PI * 2;
-    // bridge side to the lens, the balance low in the frame
-    const q = new THREE.Quaternion()
-      .setFromAxisAngle(X, -0.62 + 0.035 * Math.sin(a))
-      .multiply(new THREE.Quaternion().setFromAxisAngle(Y, Math.PI + 0.1 * Math.sin(a + 0.8)))
-      .multiply(new THREE.Quaternion().setFromAxisAngle(Z, -0.5 + 0.05 * Math.cos(a)));
-    g.quaternion.copy(q);
-    g.scale.setScalar(5.4);
-    // keep the balance staff near the centre of the frame
-    const target = new THREE.Vector3(-7.2 + 0.9 * Math.sin(a), -4.4 + 0.5 * Math.cos(a), -5.2).multiplyScalar(5.4).applyQuaternion(q);
-    g.position.set(-target.x + 6, -target.y - 2, 150 - target.z);
-    const cam = camera as THREE.PerspectiveCamera;
-    focus.current.distance = cam.position.z - 150;
-    focus.current.strength = 46;
-    if (window.__studio) window.__studio.ready = true;
-  });
-
-  return (
-    <>
-      <Pipeline tier={TIER} focus={focus} />
-      <StudioEnv dark resolution={1024} />
-      <KeyLight tier={TIER} intensity={0.9} />
-      <group ref={group}>{model && <primitive object={model.root} />}</group>
-    </>
-  );
-}
-
 export default function Studio() {
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const mode = params.get('studio') ?? 'still';
@@ -178,6 +122,7 @@ export default function Studio() {
     time: TEN_EIGHT,
     spin: Number(params.get('spin') ?? 0.6),
     inkFloor: Number(params.get('ink') ?? 0),
+    part: (params.get('part') as PartId | null) ?? undefined,
   };
 
   return (
@@ -187,9 +132,9 @@ export default function Studio() {
         frameloop="never"
         shadows="variance"
         gl={{ alpha: true, antialias: false, preserveDrawingBuffer: true, stencil: false }}
-        camera={{ fov: CAMERA_FOV, position: [0, 0, CAMERA_Z], near: mode === 'film' ? 20 : 70, far: 700 }}
+        camera={{ fov: CAMERA_FOV, position: [0, 0, CAMERA_Z], near: 70, far: 700 }}
       >
-        {mode === 'film' ? <Film /> : mode === 'hero' ? <HeroScene tier={TIER} frozen={frozen} /> : <Still id={id} view={view} />}
+        {mode === 'hero' ? <HeroScene tier={TIER} frozen={frozen} /> : <Still id={id} view={view} />}
       </Canvas>
     </div>
   );

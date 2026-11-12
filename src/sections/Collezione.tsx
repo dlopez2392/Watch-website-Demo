@@ -1,12 +1,20 @@
 import { scrollToId } from '../lib/motion';
 import { WATCHES } from '../lib/watches';
 import { PlateCase } from '../plates/plates';
+import { Pic } from './Media';
 
 const ALT: Record<string, string> = {
   codice: 'Codice 39: steel dress watch with an ivory sector dial, blued leaf hands, small seconds at six, on a cognac calf strap.',
   lungarno: 'Lungarno 36: slim yellow-gold watch with an ivory lacquer dial, gold batons and two gold leaf hands, on a sepia strap.',
   tirreno: 'Tirreno 41: steel dive watch with a midnight-blue dial, luminous markers, sword hands and a sixty-minute rotating bezel.',
   doppiofuso: 'Doppio Fuso 40: steel travel watch with an iron-gall dial, a red twenty-four hour hand and an engraved twenty-four hour bezel.',
+};
+
+const PHOTO: Record<string, string> = {
+  codice: 'Close photograph of an ivory dial with a small-seconds register and heat-blued hands.',
+  lungarno: 'A slim gold wristwatch with an ivory dial on a stone windowsill above the Arno at dusk.',
+  tirreno: 'Close photograph of a dark blue dive bezel and luminous markers beaded with sea water.',
+  doppiofuso: 'Close photograph of a brown-black dial with a red arrow-tipped hand beside a steel twenty-four hour bezel.',
 };
 
 export default function Collezione() {
@@ -53,6 +61,10 @@ export default function Collezione() {
                 <p className="watch-numeral" aria-hidden="true">
                   {w.numeral}
                 </p>
+                <figure className="watch-photo" data-reveal style={{ ['--i' as string]: 2 }}>
+                  <Pic name={`detail-${w.id}`} sizes="(max-width: 900px) 44vw, 17vw" alt={PHOTO[w.id]} />
+                  <figcaption className="hand">dal vero</figcaption>
+                </figure>
               </div>
               <div className="watch-text">
                 <p className="label" data-reveal>

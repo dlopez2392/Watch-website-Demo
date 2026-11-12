@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Environment, Lightformer } from '@react-three/drei';
-import { setInkDpr } from './materials';
+import { createStudioEnvironment } from './studioEnv';
+import { setDirectOutput, setInkDpr } from './materials';
 
 export interface Tier {
   /** 'high' renders through a float target with depth of field; 'low' renders straight to the canvas */
@@ -153,6 +153,7 @@ export function Pipeline({ tier, focus }: { tier: Tier; focus: React.MutableRefO
   useEffect(() => {
     gl.setClearColor(0x000000, 0);
     setInkDpr(tier.dpr);
+    setDirectOutput(!high);
     if (!high) {
       patchToneMapping();
       gl.toneMapping = THREE.CustomToneMapping;
@@ -197,26 +198,19 @@ export function Pipeline({ tier, focus }: { tier: Tier; focus: React.MutableRefO
   return null;
 }
 
-/**
- * The studio: no downloaded HDRI, the softboxes are built in the scene and baked once.
- * A wide parchment card sits behind everything, so polished steel picks up the page it floats over.
- */
-export function StudioEnv({ dark = false, resolution = 256 }: { dark?: boolean; resolution?: number }) {
-  return (
-    <Environment resolution={resolution} frames={1} background={false} environmentIntensity={dark ? 0.74 : 0.86}>
-      <color attach="background" args={[dark ? '#5d564b' : '#7a7062']} />
-      <Lightformer form="rect" intensity={dark ? 0.6 : 0.9} color={dark ? '#2f3d68' : '#e9dcc0'} position={[0, 0, -260]} scale={[1400, 1400, 1]} target={[0, 0, 0]} />
-      <Lightformer form="rect" intensity={dark ? 4.6 : 4.2} color={dark ? '#ffe9cc' : '#fff6e8'} position={[-210, 250, 300]} scale={[330, 240, 1]} target={[0, 0, 30]} />
-      <Lightformer form="rect" intensity={5.6} color="#ffffff" position={[330, 60, 150]} scale={[36, 420, 1]} target={[0, 0, 30]} />
-      <Lightformer form="rect" intensity={dark ? 1.0 : 1.4} color="#ffe9cf" position={[60, -300, 240]} scale={[320, 120, 1]} target={[0, 0, 30]} />
-      <Lightformer form="rect" intensity={2.2} color="#dfe8ff" position={[-340, -40, 120]} scale={[28, 300, 1]} target={[0, 0, 30]} />
-      <Lightformer form="circle" intensity={2.6} color="#ffffff" position={[40, 120, 420]} scale={[70, 70, 1]} target={[0, 0, 30]} />
-      {/* black flags: polished steel needs something dark to reflect, or it has no edge */}
-      <Lightformer form="rect" intensity={1} color="#0c0a08" position={[150, 300, 200]} scale={[130, 260, 1]} target={[0, 0, 30]} />
-      <Lightformer form="rect" intensity={1} color="#0c0a08" position={[-90, -320, 150]} scale={[260, 90, 1]} target={[0, 0, 30]} />
-      <Lightformer form="rect" intensity={1} color="#14110e" position={[380, -180, 60]} scale={[60, 200, 1]} target={[0, 0, 30]} />
-    </Environment>
-  );
+/** Installs the painted studio as the scene's environment. Nothing is downloaded. */
+export function StudioEnv({ dark = false, resolution = 512, intensity = 1 }: { dark?: boolean; resolution?: number; intensity?: number }) {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    const target = createStudioEnvironment(gl, dark, resolution);
+    scene.environment = target.texture;
+    scene.environmentIntensity = intensity;
+    return () => {
+      scene.environment = null;
+      target.dispose();
+    };
+  }, [gl, scene, dark, resolution, intensity]);
+  return null;
 }
 
 export function KeyLight({ tier, intensity = 1.0 }: { tier: Tier; intensity?: number }) {
@@ -238,7 +232,7 @@ export function KeyLight({ tier, intensity = 1.0 }: { tier: Tier; intensity?: nu
   return (
     <directionalLight
       ref={ref}
-      position={[-70, 100, 340]}
+      position={[-52, 78, 340]}
       intensity={intensity}
       color="#fff3e2"
       castShadow

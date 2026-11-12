@@ -3,11 +3,15 @@
 export const CAMERA_Z = 300;
 export const CAMERA_FOV = 22;
 
+/** Scroll, as a fraction of the pinned hero: rest, the descent through the parts, the closing, the watch. */
+export const SCROLL = { travel0: 0.035, travel1: 0.62, close0: 0.63, close1: 0.86 };
+
 export interface HeroLayout {
   /** visible page height and width in millimetres, at the page plane */
   Hw: number;
   Ww: number;
   portrait: boolean;
+  /** how far apart the parts stand, as a multiple of their nominal spacing */
   explodeScale: number;
   /** direction of the stack axis on screen, radians from +x */
   psi: number;
@@ -19,6 +23,9 @@ export interface HeroLayout {
   centreAssembled: [number, number, number];
   flatScale: number;
   flat: [number, number, number];
+  /** which height of the stack sits at the pivot at the start and at the end of the descent */
+  focusTop: number;
+  focusBottom: number;
   /** CSS pixels per millimetre on the page plane */
   ppu: number;
 }
@@ -28,25 +35,27 @@ export function computeLayout(width: number, height: number): HeroLayout {
   const Hw = 2 * CAMERA_Z * Math.tan((CAMERA_FOV * Math.PI) / 360);
   const Ww = Hw * aspect;
   const portrait = aspect < 0.9;
-  const explodeScale = portrait ? 0.72 : aspect < 1.25 ? 0.86 : 1;
-  const psi = (portrait ? 82 : aspect < 1.25 ? 46 : aspect > 2.1 ? 13 : 20) * (Math.PI / 180);
-  const theta = 54 * (Math.PI / 180);
-  const floatZ = portrait ? 30 : 38;
+  const explodeScale = portrait ? 1.08 : 1.3;
+  const psi = Math.PI / 2;
+  const theta = (portrait ? 56 : 57) * (Math.PI / 180);
+  const floatZ = 40;
   const persp = CAMERA_Z / (CAMERA_Z - floatZ);
-  const len = (119 * explodeScale * Math.sin(theta) + 28) * persp;
-  const wid = 54 * persp;
-  const needW = len * Math.abs(Math.cos(psi)) + wid * Math.abs(Math.sin(psi));
-  const needH = len * Math.abs(Math.sin(psi)) + wid * Math.abs(Math.cos(psi));
-  const availW = Ww * (portrait ? 0.98 : 0.82);
-  const availH = Hw * (portrait ? 0.53 : 0.88);
-  const scale = Math.min(1.25, availW / needW, availH / needH);
-  const centre: [number, number, number] = [portrait ? Ww * 0.02 : Ww * 0.05, portrait ? -Hw * 0.13 : -Hw * 0.045, floatZ];
+  // the watch is large: the stack is taller than the window, and scrolling walks down it
+  const disc = portrait ? Ww * 0.62 : Math.min(Hw * 0.44, Ww * 0.3);
+  const scale = disc / (39 * persp);
+  const centre: [number, number, number] = [portrait ? 0 : Ww * (aspect < 1.3 ? 0.2 : 0.17), 0, floatZ];
+  // half the window, measured along the stack in the stack's own units
+  const span = Hw / 2 / (scale * persp * Math.sin(theta) * explodeScale);
+  const top = 52;
+  const bottom = -74;
+  const focusTop = top - span * (portrait ? 0.12 : 0.74);
+  const focusBottom = Math.min(focusTop, bottom + span * 0.82);
   const perspA = CAMERA_Z / (CAMERA_Z - 46);
-  const targetDia = portrait ? Ww * 0.68 : Math.min(Hw * 0.45, Ww * 0.3);
+  const targetDia = portrait ? Ww * 0.7 : Math.min(Hw * 0.5, Ww * 0.32);
   const scaleAssembled = targetDia / (39 * perspA);
-  const centreAssembled: [number, number, number] = [portrait ? 0 : Ww * 0.15, portrait ? Hw * 0.07 : Hw * 0.01, 46];
-  const flatScale = Math.min(scale * 1.15, (portrait ? Ww * 0.62 : Hw * 0.5) / 47);
-  const flat: [number, number, number] = [portrait ? 0 : Ww * 0.06, portrait ? -Hw * 0.14 : -Hw * 0.04, 0.4];
+  const centreAssembled: [number, number, number] = [portrait ? 0 : centre[0], portrait ? Hw * 0.07 : Hw * 0.01, 46];
+  const flatScale = scale * persp;
+  const flat: [number, number, number] = [centre[0], portrait ? -Hw * 0.16 : -Hw * 0.02, 0.4];
   const ppu = height / Hw;
-  return { Hw, Ww, portrait, explodeScale, psi, theta, scale, centre, scaleAssembled, centreAssembled, flatScale, flat, ppu };
+  return { Hw, Ww, portrait, explodeScale, psi, theta, scale, centre, scaleAssembled, centreAssembled, flatScale, flat, focusTop, focusBottom, ppu };
 }

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { hasWebGL2, prefersReducedMotion } from '../lib/env';
 import { ScrollTrigger, scrollToId } from '../lib/motion';
+import { SCROLL } from '../hero/layout';
 import { getVersion, hero, subscribe } from '../hero/store';
 import Annotation from './Annotation';
 import PageDrawing from './PageDrawing';
@@ -29,7 +30,8 @@ export default function Hero() {
       onUpdate: (self) => {
         hero.scroll = self.progress;
         el.style.setProperty('--s', self.progress.toFixed(4));
-        el.dataset.phase = self.progress < 0.1 ? 'open' : self.progress > 0.7 ? 'closed' : 'closing';
+        const p = self.progress;
+        el.dataset.phase = p < SCROLL.travel0 ? 'open' : p < SCROLL.travel1 ? 'travel' : p < SCROLL.close1 - 0.06 ? 'closing' : 'closed';
       },
     });
     const io = new IntersectionObserver(([e]) => {
@@ -123,7 +125,7 @@ export default function Hero() {
         </div>
 
         <a className="hero-scroll label" href="#movimento" onClick={go('movimento')}>
-          <span>Scroll to assemble</span>
+          <span>Scroll, part by part</span>
           <i aria-hidden="true" />
         </a>
       </div>

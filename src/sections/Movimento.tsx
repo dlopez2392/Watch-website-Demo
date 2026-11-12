@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { CALIBRE_FACTS } from '../lib/calibre';
 import { PlateBalance, PlateEscapement, PlateSection, PlateTrain, PlateWinding } from '../plates/plates';
+import { Pic } from './Media';
 
 interface PlateEntry {
   tav: string;
@@ -78,9 +79,11 @@ const PLATES: PlateEntry[] = [
 
 export default function Movimento() {
   return (
-    <section className="section movimento" id="movimento" aria-labelledby="movimento-h">
-      <div className="wrap">
-        <header className="section-head">
+    <section className="movimento" id="movimento" aria-labelledby="movimento-h">
+      <div className="band" data-tone="dark">
+        <Pic className="band-img" name="notebook-spread" sizes="100vw" alt="An open notebook on a walnut desk, its parchment pages filled with ink and red-chalk drawings of a watch movement, a brass compass resting on the page." />
+        <div className="band-shade" aria-hidden="true" />
+        <div className="wrap band-copy">
           <p className="kicker" data-reveal>
             <span className="numeral">II</span>
             <span className="label">Il Movimento</span>
@@ -91,8 +94,9 @@ export default function Movimento() {
           <p className="lede" data-reveal style={{ ['--i' as string]: 2 }}>
             The {CALIBRE_FACTS.name} is drawn in Florence before a single part is cut. These are the plates we work from.
           </p>
-        </header>
-
+        </div>
+      </div>
+      <div className="wrap section movimento-body">
         <dl className="facts" data-reveal>
           <div>
             <dt className="label">Diameter</dt>
@@ -162,6 +166,19 @@ export default function Movimento() {
             <span className="hand">sezione sviluppata del treno, scala 4 : 1</span>
           </figcaption>
         </div>
+      </figure>
+
+      <figure className="interlude wrap">
+        <div className="interlude-frame" data-reveal>
+          <Pic name="notebook-watch" sizes="(max-width: 900px) 92vw, 70vw" alt="A notebook sheet of watch drawings in ink and red chalk, with a finished steel wristwatch on a cognac strap lying across the page." />
+        </div>
+        <figcaption data-reveal style={{ ['--i' as string]: 1 }}>
+          <p className="hand">prima il disegno,</p>
+          <p className="interlude-line">
+            then <em>the object.</em>
+          </p>
+          <p className="body">Every Valdarno begins as a page like this one. The watch is not finished until it can lie on its own drawing and agree with it.</p>
+        </figcaption>
       </figure>
     </section>
   );

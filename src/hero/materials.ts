@@ -26,10 +26,15 @@ const shared = {
   uInkLine: { value: INK.line },
   uInkLight: { value: new THREE.Vector3(-0.45, 0.62, 0.64).normalize() },
   uDpr: { value: 1 },
+  /** 1 when drawing straight to the canvas, where blending happens after colour encoding */
+  uDirect: { value: 0 },
 };
 
 export const setInkDpr = (dpr: number) => {
   shared.uDpr.value = dpr;
+};
+export const setDirectOutput = (direct: boolean) => {
+  shared.uDirect.value = direct ? 1 : 0;
 };
 
 const INK_PARS = /* glsl */ `
@@ -137,7 +142,7 @@ export function createMaterials(): MatLib {
 
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
   const defs: Record<MatKey, () => THREE.Material> = {
-    steelPolished: () => std({ color: '#d9dadd', metalness: 1, roughness: 0.08 }),
+    steelPolished: () => std({ color: '#e2e3e6', metalness: 1, roughness: 0.06 }),
     steelBrushed: () =>
       std({ color: '#cfd0d3', metalness: 1, roughness: 0.36, roughnessMap: brushed, bumpMap: brushed, bumpScale: 0.35 }),
     steelFrosted: () => std({ color: '#c6c7ca', metalness: 1, roughness: 0.42 }),
@@ -146,13 +151,13 @@ export function createMaterials(): MatLib {
     goldPolished: () => std({ color: '#e3bd78', metalness: 1, roughness: 0.09 }),
     goldBrushed: () =>
       std({ color: '#dcb671', metalness: 1, roughness: 0.34, roughnessMap: brushed, bumpMap: brushed, bumpScale: 0.35 }),
-    brass: () => std({ color: '#d2a659', metalness: 1, roughness: 0.24, roughnessMap: brushedFine }),
+    brass: () => std({ color: '#d9ad5c', metalness: 1, roughness: 0.2, roughnessMap: brushedFine }),
     gilt: () => std({ color: '#dcb86c', metalness: 1, roughness: 0.16 }),
     plate: () =>
-      std({ color: '#cfc7b6', metalness: 1, roughness: 0.44, roughnessMap: perlage, bumpMap: perlage, bumpScale: 0.2 }),
+      std({ color: '#dcdcde', metalness: 1, roughness: 0.4, roughnessMap: perlage, bumpMap: perlage, bumpScale: 0.28 }),
     bridge: () =>
-      std({ color: '#d3ccbd', metalness: 1, roughness: 0.4, roughnessMap: stripes, bumpMap: stripes, bumpScale: 0.07 }),
-    blued: () => std({ color: '#182b72', metalness: 0.92, roughness: 0.2 }),
+      std({ color: '#e0e1e3', metalness: 1, roughness: 0.3, roughnessMap: stripes, bumpMap: stripes, bumpScale: 0.16 }),
+    blued: () => std({ color: '#101d58', metalness: 0.9, roughness: 0.22 }),
     spring: () => std({ color: '#5b6f9c', metalness: 1, roughness: 0.24 }),
     ruby: () =>
       new THREE.MeshPhysicalMaterial({
@@ -210,14 +215,21 @@ export function createMaterials(): MatLib {
       });
       m.onBeforeCompile = (shader) => {
         shader.uniforms.uInk = ink;
+        shader.uniforms.uDirect = shared.uDirect;
+        // A reflection is light added to what lies behind. Added after colour encoding it is far too strong,
+        // so on the direct path the crystal hands over un-encoded values.
         shader.fragmentShader = shader.fragmentShader
-          .replace('#include <common>', '#include <common>\nuniform float uInk;')
+          .replace('#include <common>', '#include <common>\nuniform float uInk;\nuniform float uDirect;')
           .replace(
             '#include <opaque_fragment>',
             '#include <opaque_fragment>\ngl_FragColor *= (1.0 - smoothstep(0.0, 0.7, uInk));',
+          )
+          .replace(
+            '#include <colorspace_fragment>',
+            '#include <colorspace_fragment>\nif (uDirect > 0.5) gl_FragColor.rgb = pow(max(gl_FragColor.rgb, vec3(0.0)), vec3(2.2)) * 0.62;',
           );
       };
-      m.customProgramCacheKey = () => 'crystal-v1';
+      m.customProgramCacheKey = () => 'crystal-v2';
       return track(m);
     },
     leather(map, ink) {

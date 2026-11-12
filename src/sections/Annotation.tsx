@@ -1,5 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { ANNOTATIONS, PART_ORDER } from '../hero/partsData';
+import { SCROLL } from '../hero/layout';
 import { getVersion, hero, shownPart, subscribe } from '../hero/store';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI', 'XVII', 'XVIII', 'XIX', 'XX', 'XXI', 'XXII', 'XXIII', 'XXIV'];
@@ -23,7 +24,7 @@ export default function Annotation({ avoid }: { avoid: React.RefObject<HTMLEleme
       const el = root.current;
       const lab = label.current;
       if (!el || !lab || !line.current || !dot.current) return;
-      const show = !!id && hero.anchor.visible && hero.scroll < 0.12;
+      const show = !!id && hero.anchor.visible && hero.scroll < SCROLL.close0;
       el.dataset.on = show ? 'true' : 'false';
       if (!id || !hero.anchor.visible) return;
       const W = el.clientWidth;
@@ -31,7 +32,7 @@ export default function Annotation({ avoid }: { avoid: React.RefObject<HTMLEleme
       const { x: axp, y: ayp } = hero.anchor;
       const lw = lab.offsetWidth;
       const lh = lab.offsetHeight;
-      const narrow = W < 760;
+      const narrow = W < 900;
       let lx: number;
       let ly: number;
       let d: string;
@@ -40,28 +41,21 @@ export default function Annotation({ avoid }: { avoid: React.RefObject<HTMLEleme
         ly = H - lh - 18;
         d = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${(lx + 26).toFixed(1)} ${(ly - 4).toFixed(1)}`;
       } else {
-        // Two clear places on the page: left, under the title, and right, above the plate caption.
-        // The note goes to whichever is nearer the part, and stays there while the stack turns.
+        // The note lives in the left column: under the title at rest, centred while descending the stack.
         const host = el.getBoundingClientRect();
         const block = avoid.current?.getBoundingClientRect();
         const gutter = block ? block.left - host.left : 72;
-        const leftSlot = { x: gutter, y: Math.max((block ? block.bottom - host.top : H * 0.5) + 56, H * 0.57) };
-        const rightSlot = { x: W - gutter - 52 - lw, y: H - lh - Math.max(150, H * 0.2) };
-        if (side.current.id !== id) {
-          const dl = Math.hypot(axp - (leftSlot.x + lw / 2), ayp - (leftSlot.y + lh / 2));
-          const dr = Math.hypot(axp - (rightSlot.x + lw / 2), ayp - (rightSlot.y + lh / 2));
-          const useLeft = W >= 1180 && leftSlot.y + lh < H - 70 && dl < dr * 0.9;
-          side.current = { id, x: useLeft ? 0 : 1, y: 0 };
-        }
-        const left = side.current.x === 0;
-        lx = left ? leftSlot.x : rightSlot.x;
-        ly = left ? leftSlot.y : rightSlot.y;
-        // the line lands on a short rule beside the first line of lettering
-        const fromLeft = axp < lx + lw / 2;
-        const ex = fromLeft ? lx - 12 : lx + lw + 12;
-        const ey = ly + 24;
-        const kx = fromLeft ? ex - 30 : ex + 30;
-        d = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${kx.toFixed(1)} ${ey.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}`;
+        const travel = hero.scroll >= SCROLL.travel0;
+        const yRest = Math.min(Math.max((block ? block.bottom - host.top : H * 0.5) + 52, H * 0.58), H - lh - 96);
+        const targetY = travel ? H * 0.47 - lh / 2 : yRest;
+        if (side.current.id === '') side.current.y = targetY;
+        side.current.y += (targetY - side.current.y) * 0.14;
+        side.current.id = id;
+        lx = gutter;
+        ly = side.current.y;
+        const ex = lx + lw + 14;
+        const ey = ly + (travel ? 46 : 24);
+        d = `M${axp.toFixed(1)} ${ayp.toFixed(1)}L${(ex + 36).toFixed(1)} ${ey.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}`;
       }
       lab.style.transform = `translate3d(${lx.toFixed(1)}px, ${ly.toFixed(1)}px, 0)`;
       line.current.setAttribute('d', d);
@@ -86,7 +80,10 @@ export default function Annotation({ avoid }: { avoid: React.RefObject<HTMLEleme
       <div className="annotation-label" ref={label}>
         {a && (
           <div key={id} className="annotation-inner">
-            <span className="annotation-num">{romanOf(index)}</span>
+            <span className="annotation-num">
+              {romanOf(index)}
+              <i> / XXIV</i>
+            </span>
             <p className="annotation-it">{a.it}</p>
             <p className="annotation-en">{a.en}</p>
             <p className="annotation-note">{a.note}</p>

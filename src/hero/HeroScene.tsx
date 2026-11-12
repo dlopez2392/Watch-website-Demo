@@ -7,7 +7,7 @@ import type { Part, PartId } from './parts';
 import { KeyLight, Pipeline, ShadowCatcher, StudioEnv, type FocusRef, type Tier } from './Stage';
 import { hero, setActive, setAuto, setReady, shownPart } from './store';
 import { fontsReady } from './textures';
-import { CAMERA_FOV, CAMERA_Z, computeLayout } from './layout';
+import { CAMERA_FOV, CAMERA_Z, SCROLL, computeLayout } from './layout';
 
 export { CAMERA_FOV, CAMERA_Z };
 
@@ -23,7 +23,7 @@ const wrapPi = (a: number) => {
   return x - Math.PI;
 };
 
-const TOUR: PartId[] = ['balance', 'dial', 'barrel', 'escapeWheel', 'crystal', 'bridges', 'fourthWheel', 'crown', 'hairspring', 'caseMiddle', 'strap'];
+const TOUR: PartId[] = ['dial', 'barrel', 'hands', 'centreWheel', 'crystal', 'mainplate', 'fourthWheel', 'bezel', 'secondsHand'];
 const INTRO_SECONDS = 5.2;
 
 const X = new THREE.Vector3(1, 0, 0);
@@ -34,7 +34,7 @@ export interface HeroSceneProps {
   tier: Tier;
   reduced?: boolean;
   /** freeze into a given state: used for stills and the reduced-motion illustration */
-  frozen?: { intro: number; scroll: number; time: number; spin: number; inkFloor?: number };
+  frozen?: { intro: number; scroll: number; time: number; spin: number; inkFloor?: number; part?: PartId };
 }
 
 export default function HeroScene({ tier, frozen }: HeroSceneProps) {
@@ -144,7 +144,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
   }, [gl, frozen]);
 
   /* ---------- the frame ---------- */
-  const clock = useRef({ start: 0, spin: 0.6, tour: 0, tourIndex: -1, firstFrame: true });
+  const clock = useRef({ start: 0, spin: 0.5, tour: 0, tourIndex: -1, firstFrame: true, focus: 0, started: false });
   const q = useMemo(() => ({ a: new THREE.Quaternion(), b: new THREE.Quaternion(), user: new THREE.Quaternion(), tmp: new THREE.Quaternion(), v: new THREE.Vector3(), flat: new THREE.Quaternion() }), []);
 
   useFrame((state, delta) => {
@@ -176,23 +176,37 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     hero.intro = p;
     const lift = smooth(0.04, 0.62, p);
     const introExplode = smooth(0.22, 1, p);
-    const sPose = smooth(0.12, 0.8, s);
+    const sPose = smooth(SCROLL.close0 + 0.01, SCROLL.close1, s);
     const rest = lift * (1 - sPose);
 
     /* time: the watch always runs */
     model.tick(wall);
 
+    /* the descent: scrolling walks down the stack, one part at a time */
+    const u = Math.min(1, Math.max(0, (s - SCROLL.travel0) / (SCROLL.travel1 - SCROLL.travel0)));
+    const n = model.parts.length;
+    const travelling = s >= SCROLL.travel0 && s < SCROLL.travel1;
+    const stop = Math.min(n - 1, Math.floor(u * n));
+    const f = Math.min(n - 1, Math.max(0, u * n - 0.5));
+    const i0 = Math.floor(f);
+    const i1 = Math.min(n - 1, i0 + 1);
+    const k = layout.explodeScale;
+    const heightOf = (part: Part) => part.explode.z + part.anchor.z / k;
+    const along = mix(heightOf(model.parts[i0]), heightOf(model.parts[i1]), f - i0);
+    const focusTarget = Math.max(layout.focusBottom, Math.min(layout.focusTop, along));
+    c.focus = c.started ? damp(c.focus, focusTarget, 3.4, dt) : focusTarget;
+    c.started = true;
+
     /* explosion, with each part slightly out of phase */
     const t = now / 1000;
-    const k = layout.explodeScale;
     model.pose(
       (part: Part) => {
-        const lag = Math.abs(part.order - 0.45) * 0.3;
-        const close = smooth(0.04 + lag, 0.6 + lag, s);
-        const bob = 1 + 0.012 * Math.sin(t * 0.55 + part.order * 21) * rest;
+        const lag = Math.abs(part.order - 0.45) * 0.1;
+        const close = smooth(SCROLL.close0 + lag, SCROLL.close1 - 0.06 + lag, s);
+        const bob = 1 + 0.008 * Math.sin(t * 0.55 + part.order * 21) * rest;
         return introExplode * (1 - close) * k * bob;
       },
-      (part: Part) => 0.085 * Math.sin(t * 0.33 + part.order * 17.3) * introExplode * (1 - sPose),
+      (part: Part) => 0.07 * Math.sin(t * 0.33 + part.order * 17.3) * introExplode * (1 - sPose),
     );
 
     /* ink resolves into metal as each part leaves the page */
@@ -214,7 +228,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
 
     /* pose: flat on the page, floating exploded, assembled */
     if (!frozen) c.spin += dt * 0.085 * rest;
-    const spin = wrapPi(c.spin) * (1 - smooth(0.05, 0.75, s));
+    const spin = wrapPi(c.spin) * (1 - smooth(SCROLL.close0, SCROLL.close1 - 0.04, s));
     q.a.copy(layout.qExploded).multiply(q.tmp.setFromAxisAngle(Z, spin));
     q.b.copy(q.flat).slerp(q.a, smooth(0.06, 0.6, p));
     q.b.slerp(layout.qAssembled, sPose);
@@ -239,36 +253,41 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     const flatten = mix(0.035, 1, smooth(0.02, 0.36, p));
     poseGroup.current.scale.set(sc, sc, sc * flatten);
 
-    /* rotate about the middle of the stack, not the dial */
-    const openness = introExplode * (1 - smooth(0.05, 0.7, s)) * k;
-    offsetGroup.current.position.z = mix(1.5, 10, openness);
-    model.glass(mix(0.1, 0.34, smooth(0.3, 1, openness)));
+    /* turn about the part in view, not about the dial */
+    const openness = introExplode * (1 - smooth(SCROLL.close0, SCROLL.close1 - 0.04, s));
+    offsetGroup.current.position.z = mix(1.5, -c.focus * k, openness);
+    model.glass(mix(0.1, 0.3, smooth(0.3, 1, openness)));
 
-    shadowOpacity.current = 0.3 * smooth(0.1, 0.7, p);
+    shadowOpacity.current = 0.24 * smooth(0.1, 0.7, p);
     focus.current.distance = CAMERA_Z - q.v.z;
-    focus.current.strength = tier.level === 'high' ? mix(0, mix(9, 7, sPose), smooth(0.3, 0.9, p)) : 0;
+    focus.current.strength = tier.level === 'high' ? mix(0, mix(19, 7, sPose), smooth(0.3, 0.9, p)) : 0;
 
-    /* quiet tour of the parts while nobody is pointing */
+    /* which part is being spoken about: the scroll's while descending, a quiet tour at rest */
     if (!frozen) {
       const idle = now - hero.lastInteraction > 3200;
-      if (p >= 1 && s < 0.04 && idle && !hero.active && !hero.focus && hero.inView) {
-        if (now - c.tour > 4600) {
+      if (travelling && p > 0.6) {
+        setAuto(model.parts[stop].id);
+        c.tour = now;
+      } else if (p >= 1 && s < SCROLL.travel0 && idle && !hero.active && !hero.focus && hero.inView) {
+        if (now - c.tour > 5200) {
           c.tour = now;
           c.tourIndex = (c.tourIndex + 1) % TOUR.length;
           setAuto(TOUR[c.tourIndex]);
-        } else if (now - c.tour > 3700 && hero.auto) {
+        } else if (now - c.tour > 4200 && hero.auto) {
           setAuto(null);
         }
       } else if (hero.auto) {
         setAuto(null);
-        c.tour = now - 2600;
+        c.tour = now - 3000;
       }
+    } else if (frozen.part) {
+      setAuto(frozen.part);
     }
 
     /* where the leader line lands */
     const shown = shownPart();
     const part = shown ? model.byId.get(shown) : undefined;
-    if (part && s < 0.3) {
+    if (part && s < SCROLL.close0) {
       poseGroup.current.updateMatrixWorld(true);
       q.v.copy(part.anchor);
       part.group.localToWorld(q.v);
@@ -285,7 +304,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
 
   const interactive = !frozen;
   const onOver = (e: ThreeEvent<PointerEvent>) => {
-    if (!interactive || hero.dragging || hero.scroll > 0.3 || hero.intro < 0.9) return;
+    if (!interactive || hero.dragging || hero.scroll > SCROLL.close0 || hero.intro < 0.9) return;
     if (e.pointerType === 'touch') return;
     e.stopPropagation();
     setActive(e.object.userData.partId as PartId);
@@ -297,7 +316,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     if (!hero.dragging) gl.domElement.style.cursor = '';
   };
   const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!interactive || orbit.current.moved || hero.scroll > 0.3) return;
+    if (!interactive || orbit.current.moved || hero.scroll > SCROLL.close0) return;
     e.stopPropagation();
     const id = e.object.userData.partId as PartId;
     setActive(hero.active === id ? null : id);

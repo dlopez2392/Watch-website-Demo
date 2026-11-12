@@ -1,4 +1,5 @@
 import { PlateProportion } from '../plates/plates';
+import { Pic } from './Media';
 
 const YEARS: [string, string, string, string][] = [
   ['MCMXXVI', '1926', 'A bench in Via dei Serragli', 'Ottavio Bellandi, an instrument maker from Figline in the upper Valdarno, opens a workshop in Florence. He makes surveyors’ levels and keeps the clocks of the quarter running.'],
@@ -28,9 +29,15 @@ export default function Storia() {
           <p className="lede" data-reveal style={{ ['--i' as string]: 2 }}>
             The house is named for the valley the founder walked out of. It has moved once, by eleven metres, after the flood.
           </p>
-          <p className="hand storia-note" data-reveal style={{ ['--i' as string]: 3 }}>
-            <span className="mirror">tutto comincia da un disegno</span>
-          </p>
+          <figure className="storia-leaf" data-reveal style={{ ['--i' as string]: 3 }}>
+            <Pic name="notebook-page" sizes="(max-width: 1000px) 80vw, 32vw" alt="A parchment sheet from the house notebooks: a watch case drawn in plan inside a circle and a square, with ruled dimension lines and notes in a small slanted hand." />
+            <figcaption>
+              <span className="label">Il Codice, foglio XII</span>
+              <span className="hand">
+                <span className="mirror">tutto comincia da un disegno</span>
+              </span>
+            </figcaption>
+          </figure>
         </header>
         <ol className="timeline">
           {YEARS.map(([roman, year, title, text]) => (

@@ -1,10 +1,20 @@
 .hero {
   position: relative;
-  height: 340vh;
+  height: 580vh;
   --s: 0;
 }
 .hero[data-mode='static'] {
   height: auto;
+}
+.hero-pin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url('/img/hf/parchment.webp') center / cover no-repeat;
+  opacity: 0.8;
+  -webkit-mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  mask-image: linear-gradient(to bottom, #000 78%, transparent);
+  pointer-events: none;
 }
 .hero-pin {
   position: sticky;
@@ -21,7 +31,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: clamp(0.16, calc(1 - var(--s) * 1.7), 1);
+  opacity: clamp(0.1, calc(1.12 - var(--s) * 1.6), 1);
 }
 .page-drawing svg {
   position: absolute;
@@ -135,8 +145,8 @@
   top: clamp(6.2rem, 15.5vh, 10.5rem);
   max-width: min(36rem, 78vw);
   pointer-events: none;
-  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
-  transform: translate3d(0, calc(var(--s) * -90px), 0);
+  opacity: clamp(0, calc(1 - var(--s) * 34), 1);
+  transform: translate3d(0, calc(var(--s) * -900px), 0);
 }
 .hero-copy > * {
   opacity: 0;
@@ -192,6 +202,7 @@
   margin-top: clamp(1.5rem, 3.4vh, 2.5rem);
   pointer-events: auto;
 }
+.hero[data-phase='travel'] .hero-copy .cta,
 .hero[data-phase='closing'] .hero-copy .cta,
 .hero[data-phase='closed'] .hero-copy .cta {
   pointer-events: none;
@@ -205,7 +216,7 @@
   bottom: clamp(1.6rem, 5vh, 3.2rem);
   text-align: right;
   pointer-events: none;
-  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+  opacity: clamp(0, calc(1 - var(--s) * 34), 1);
 }
 .hero-caption-title {
   font-style: italic;
@@ -225,7 +236,7 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+  opacity: clamp(0, calc((0.6 - var(--s)) * 20), 1);
 }
 .hero-scroll i {
   display: block;
@@ -268,8 +279,8 @@
   left: var(--gutter);
   top: 50%;
   width: min(30rem, 40vw);
-  transform: translate3d(0, calc(-50% + (1 - clamp(0, (var(--s) - 0.62) * 5, 1)) * 40px), 0);
-  opacity: clamp(0, calc((var(--s) - 0.62) * 6), 1);
+  transform: translate3d(0, calc(-50% + (1 - clamp(0, (var(--s) - 0.8) * 9, 1)) * 40px), 0);
+  opacity: clamp(0, calc((var(--s) - 0.8) * 9), 1);
   pointer-events: none;
 }
 .hero-closed .display {
@@ -364,7 +375,7 @@
 }
 .annotation-inner {
   position: relative;
-  padding-left: 2.1rem;
+  padding-top: 1.35rem;
   animation: note-in 1.1s var(--ease) both 0.35s;
 }
 @keyframes note-in {
@@ -376,7 +387,7 @@
 .annotation-num {
   position: absolute;
   left: 0;
-  top: 0.62rem;
+  top: 0;
   font-family: var(--serif);
   font-size: 0.78rem;
   letter-spacing: 0.12em;
@@ -406,6 +417,52 @@
   color: var(--ink);
 }
 
+.annotation-num i {
+  font-style: normal;
+  color: var(--sepia-soft);
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+}
+.annotation-it,
+.annotation-en,
+.annotation-note,
+.annotation-inner,
+.annotation-num {
+  transition:
+    font-size 0.9s var(--ease),
+    padding 0.9s var(--ease),
+    margin 0.9s var(--ease);
+}
+@media (min-width: 900px) {
+  .hero[data-phase='travel'] .annotation-label {
+    max-width: min(27rem, 34vw);
+  }
+  .hero[data-phase='travel'] .annotation-inner {
+    padding-top: 2.2rem;
+  }
+  .hero[data-phase='travel'] .annotation-num {
+    top: 0;
+    font-size: 0.95rem;
+    letter-spacing: 0.2em;
+  }
+  .hero[data-phase='travel'] .annotation-num i {
+    opacity: 1;
+  }
+  .hero[data-phase='travel'] .annotation-it {
+    font-size: clamp(3.6rem, 5.6vw, 5.6rem);
+    line-height: 0.82;
+  }
+  .hero[data-phase='travel'] .annotation-en {
+    margin-top: 1rem;
+    font-size: 1.05rem;
+  }
+  .hero[data-phase='travel'] .annotation-note {
+    margin-top: 0.9rem;
+    font-size: clamp(1.25rem, 1.5vw, 1.55rem);
+    line-height: 1.32;
+  }
+}
+
 /* ---------- the ruler of parts ---------- */
 
 .parts-index {
@@ -413,7 +470,7 @@
   right: clamp(0.9rem, 2vw, 1.9rem);
   top: 50%;
   transform: translateY(-50%);
-  opacity: clamp(0, calc(1 - var(--s) * 9), 1);
+  opacity: clamp(0, calc((0.65 - var(--s)) * 25), 1);
 }
 .hero[data-phase='closing'] .parts-index,
 .hero[data-phase='closed'] .parts-index {
@@ -479,7 +536,7 @@
 
 @media (max-width: 760px) {
   .hero {
-    height: 300vh;
+    height: 460vh;
   }
   .hero-copy {
     top: 5.4rem;
@@ -526,6 +583,9 @@
   .hero-scroll {
     display: none;
   }
+  .hero-pin::before {
+    background-size: 220% auto;
+  }
   .page-drawing .note {
     display: none;
   }
@@ -533,7 +593,7 @@
     top: 5.2rem;
     width: auto;
     right: var(--gutter);
-    transform: translate3d(0, calc((1 - clamp(0, (var(--s) - 0.62) * 5, 1)) * 30px), 0);
+    transform: translate3d(0, calc((1 - clamp(0, (var(--s) - 0.8) * 9, 1)) * 30px), 0);
   }
   .hero-closed .lede,
   .hero-closed .hero-time-en {
