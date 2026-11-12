@@ -120,6 +120,53 @@ export default function Movimento() {
           </div>
         </dl>
 
+        <figure className="calibre">
+          <div className="calibre-print" data-reveal>
+            <Pic
+              name="calibro"
+              sizes="(max-width: 900px) 92vw, 46vw"
+              alt="Photograph of the Calibro V.31 from the bridge side, in its steel case: gilt bridges with broad stripes, rubies in gold chatons, blued screws, the balance under its cock, and the engraving CAL. V.31, 19 RUBINI, N° 001, VALDARNO FIRENZE."
+            />
+            <p className="hand calibre-cap">il calibro, dal vero</p>
+          </div>
+          <figcaption className="calibre-text">
+            <p className="numeral" data-reveal>
+              V.31
+            </p>
+            <h3 className="plate-title" data-reveal style={{ ['--i' as string]: 1 }}>
+              Il calibro
+            </h3>
+            <p className="plate-en sc" data-reveal style={{ ['--i' as string]: 1 }}>
+              The drawing, in gilt brass and steel
+            </p>
+            <p className="body" data-reveal style={{ ['--i' as string]: 2 }}>
+              Turn the watch over and the sheet is there in metal. Nothing on this side is needed to keep time; all of it is needed to call the work finished.
+            </p>
+            <ul className="plate-keys" data-reveal style={{ ['--i' as string]: 3 }}>
+              <li>
+                <span className="k sc">a</span>
+                <span className="it">Ponti</span>
+                <span className="en">gilt, striped by hand, every edge bevelled and polished</span>
+              </li>
+              <li>
+                <span className="k sc">b</span>
+                <span className="it">Rubini</span>
+                <span className="en">nineteen, those of the train set in gold chatons</span>
+              </li>
+              <li>
+                <span className="k sc">c</span>
+                <span className="it">Viti</span>
+                <span className="en">blued over a flame, each seated in a polished sink</span>
+              </li>
+              <li>
+                <span className="k sc">d</span>
+                <span className="it">Rocchetto</span>
+                <span className="en">the winding wheels, finished with a sunray</span>
+              </li>
+            </ul>
+          </figcaption>
+        </figure>
+
         <div className="plates">
           {PLATES.map((p, i) => (
             <article className={`plate ${i % 2 ? 'is-flipped' : ''} ${p.wide ? 'is-wide' : ''}`} key={p.tav}>

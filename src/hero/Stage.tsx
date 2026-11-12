@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { createStudioEnvironment } from './studioEnv';
-import { setDirectOutput, setInkDpr } from './materials';
+import { KNEE, setDirectOutput, setInkDpr } from './materials';
 
 export interface Tier {
   /** 'high' renders through a float target with depth of field; 'low' renders straight to the canvas */
@@ -25,17 +25,6 @@ export function pickTier(width: number, height: number): Tier {
   }
   return { level: 'high', dpr: Math.min(dprDevice, 2, Math.sqrt(3.4e6 / (width * height))), shadow: 2048, detail: 1, texture: 2048 };
 }
-
-/**
- * A gentle shoulder instead of a filmic curve: identity up to the knee, so the ink and
- * paper tones arrive on screen exactly as specified, and only the speculars roll off.
- */
-const KNEE = /* glsl */ `
-vec3 softKnee(vec3 c) {
-  const float k = 0.74;
-  vec3 over = max(c - k, 0.0);
-  return min(c, vec3(k)) + (1.0 - k) * (1.0 - exp(-over / (1.0 - k)));
-}`;
 
 let tonePatched = false;
 export function patchToneMapping() {
@@ -213,33 +202,56 @@ export function StudioEnv({ dark = false, resolution = 512, intensity = 1 }: { d
   return null;
 }
 
-export function KeyLight({ tier, intensity = 1.0 }: { tier: Tier; intensity?: number }) {
+/**
+ * The key. `extent` is the half-width of the area its shadow map covers: the tighter it is drawn
+ * round the watch, the finer the shadows, down to the one a hand throws on the dial.
+ */
+export function KeyLight({
+  tier,
+  intensity = 1.0,
+  extent = 170,
+  at = [0, 0, 0],
+  dir = [-52, 78, 340],
+  light,
+}: {
+  tier: Tier;
+  intensity?: number;
+  extent?: number;
+  at?: [number, number, number];
+  /** towards the light; the hero keeps it near the eye so shadows fall straight back onto the page */
+  dir?: [number, number, number];
+  light?: React.MutableRefObject<THREE.DirectionalLight | null>;
+}) {
   const ref = useRef<THREE.DirectionalLight>(null);
   useEffect(() => {
     const l = ref.current;
     if (!l) return;
-    l.target.position.set(0, 0, 0);
+    if (light) light.current = l;
+    const k = 352 / Math.hypot(dir[0], dir[1], dir[2]);
+    l.position.set(at[0] + dir[0] * k, at[1] + dir[1] * k, at[2] + dir[2] * k);
+    l.target.position.set(at[0], at[1], at[2]);
     l.target.updateMatrixWorld();
     const c = l.shadow.camera;
-    c.left = -170;
-    c.right = 170;
-    c.top = 130;
-    c.bottom = -130;
-    c.near = 60;
-    c.far = 700;
+    c.left = -extent;
+    c.right = extent;
+    c.top = extent * 0.77;
+    c.bottom = -extent * 0.77;
+    // a short range keeps the depth precise enough to separate a hand from the dial beneath it
+    c.near = extent < 100 ? 200 : 60;
+    c.far = extent < 100 ? 520 : 700;
     c.updateProjectionMatrix();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extent, at[0], at[1], at[2], dir[0], dir[1], dir[2], light]);
   return (
     <directionalLight
       ref={ref}
-      position={[-52, 78, 340]}
       intensity={intensity}
       color="#fff3e2"
       castShadow
       shadow-mapSize={[tier.shadow, tier.shadow]}
       shadow-radius={tier.level === 'high' ? 7 : 5}
       shadow-blurSamples={tier.level === 'high' ? 16 : 8}
-      shadow-bias={-0.0006}
+      shadow-bias={extent < 100 ? -0.0004 : -0.0006}
     />
   );
 }

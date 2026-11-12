@@ -34,7 +34,7 @@ export interface WatchSpec {
   gmtHand: boolean;
   crownGuards: boolean;
   displayBack: boolean;
-  applied: 'none' | 'gold' | 'steel';
+  applied: 'none' | 'gold' | 'steel' | 'blued';
   strap: { color: string; stitch: string; label: string };
   specs: [string, string][];
 }
@@ -62,7 +62,7 @@ export const WATCHES: WatchSpec[] = [
     gmtHand: false,
     crownGuards: false,
     displayBack: true,
-    applied: 'none',
+    applied: 'blued',
     strap: { color: '#84522f', stitch: '#d9c3a0', label: 'Cognac calf, Santa Croce' },
     specs: [
       ['Case', '316L steel, 39 mm × 10.5 mm'],
@@ -168,7 +168,7 @@ export const WATCHES: WatchSpec[] = [
     crownGuards: false,
     displayBack: true,
     applied: 'steel',
-    strap: { color: '#7d3423', stitch: '#b98a6a', label: 'Sanguine calf, tone-on-tone' },
+    strap: { color: '#7d3423', stitch: '#b98a6a', label: 'Chestnut calf, saddle-stitched' },
     specs: [
       ['Case', '316L steel, 40 mm × 11.2 mm'],
       ['Lug to lug', '47.6 mm, 20 mm between lugs'],

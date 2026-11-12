@@ -13,9 +13,9 @@ const TRIM = new Set(['bottega-bluing', 'bottega-watchmaker', 'bottega-anglage',
 
 for (const file of readdirSync(SRC)) {
   if (!file.endsWith('.png') || file === 'test.png' || file.endsWith('-poster.png')) continue;
-  // of the four full stills only the Lungarno came back without lettering on the dial; the others are replaced by detail shots
-  if (file.startsWith('still-') && file !== 'still-lungarno.png') continue;
-  const name = file.replace('.png', '').replace('still-lungarno', 'detail-lungarno');
+  // the watches themselves are photographed from the site's own renders: see optimize-photos.mjs
+  if (/^(still|detail|photo)-/.test(file) || file === 'bottega-movement.png' || file === 'calibro-film-src.png') continue;
+  const name = file.replace('.png', '');
   let img = sharp(`${SRC}/${file}`);
   if (TRIM.has(name)) {
     const t = sharp(await img.trim({ threshold: 28 }).toBuffer());
@@ -24,11 +24,6 @@ for (const file of readdirSync(SRC)) {
     const dx = Math.round(tm.width * 0.022);
     const dy = Math.round(tm.height * 0.022);
     img = sharp(await t.extract({ left: dx, top: dy, width: tm.width - 2 * dx, height: tm.height - 2 * dy }).toBuffer());
-  }
-  if (name === 'detail-codice') {
-    // keep the seconds register, lose the stray lettering above it
-    const m = await img.metadata();
-    img = sharp(await img.extract({ left: Math.round(m.width * 0.04), top: Math.round(m.height * 0.36), width: Math.round(m.width * 0.72), height: Math.round(m.height * 0.62) }).toBuffer());
   }
   if (name === 'parchment') {
     // one clean leaf of the sheet, away from the fold

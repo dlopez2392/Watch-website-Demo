@@ -98,6 +98,16 @@ export default function Hero() {
           {mode === 'live' && <p className="hero-hint label">{touch ? 'Tap a part · drag to turn' : 'Point at a part · drag to turn'}</p>}
         </div>
 
+        {mode === 'live' && (
+          <div className="hero-turn" aria-hidden="true">
+            <p className="hand">si richiude</p>
+            <p className="hero-turn-line">
+              Closed again, <em>from the back.</em>
+            </p>
+            <p className="body">Twenty-four parts go home in the order they left. The calibre stays in view through a second sapphire; then the watch is turned to its dial.</p>
+          </div>
+        )}
+
         <div className="hero-closed" aria-hidden={mode === 'static'}>
           <p className="numeral">I</p>
           <h2 className="display">

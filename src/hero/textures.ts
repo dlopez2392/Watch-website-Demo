@@ -123,17 +123,36 @@ export function stripesTexture(): THREE.CanvasTexture {
   return asTexture(c, false);
 }
 
-/** Calf grain. */
+/** Calf grain: pores, and the fine creases that run between them. */
 export function leatherTexture(): THREE.CanvasTexture {
-  const S = 256;
+  const S = 512;
   const [c, g] = canvas(S, S);
   const r = rng(23);
   g.fillStyle = 'rgb(128,128,128)';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 5200; i++) {
-    const v = r() > 0.5 ? 200 : 60;
-    g.fillStyle = `rgba(${v},${v},${v},${0.08 + r() * 0.16})`;
-    const s = 0.6 + r() * 2.2;
+  // creases: short wandering lines, drawn twice so they tile
+  g.lineCap = 'round';
+  for (let i = 0; i < 520; i++) {
+    let x = r() * S;
+    let y = r() * S;
+    let a = r() * Math.PI * 2;
+    g.strokeStyle = `rgba(30,30,30,${0.1 + r() * 0.16})`;
+    g.lineWidth = 0.7 + r() * 1.1;
+    g.beginPath();
+    g.moveTo(x, y);
+    const n = 3 + Math.floor(r() * 5);
+    for (let k = 0; k < n; k++) {
+      a += (r() - 0.5) * 1.3;
+      x += Math.cos(a) * (5 + r() * 9);
+      y += Math.sin(a) * (5 + r() * 9);
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  for (let i = 0; i < 9000; i++) {
+    const v = r() > 0.62 ? 215 : 40;
+    g.fillStyle = `rgba(${v},${v},${v},${0.1 + r() * 0.2})`;
+    const s = 0.7 + r() * 2.0;
     g.beginPath();
     g.ellipse(r() * S, r() * S, s, s * (0.5 + r() * 0.8), r() * 3, 0, Math.PI * 2);
     g.fill();
@@ -141,41 +160,94 @@ export function leatherTexture(): THREE.CanvasTexture {
   return asTexture(c, false);
 }
 
-/** Strap face: leather colour with a line of stitching down each edge. */
+/** Strap face: dyed calf, darker where the edges were burnished, saddle-stitched down both sides. */
 export function strapTexture(color: string, stitch: string): THREE.CanvasTexture {
-  const [c, g] = canvas(128, 256);
+  const W = 256;
+  const H = 512;
+  const [c, g] = canvas(W, H);
   const r = rng(31);
   g.fillStyle = color;
-  g.fillRect(0, 0, 128, 256);
-  for (let i = 0; i < 900; i++) {
-    g.fillStyle = `rgba(${r() > 0.5 ? '255,255,255' : '0,0,0'},${0.02 + r() * 0.05})`;
-    g.fillRect(r() * 128, r() * 256, 1 + r() * 2, 1 + r() * 2);
+  g.fillRect(0, 0, W, H);
+  // the dye is never even: slow mottling
+  for (let i = 0; i < 90; i++) {
+    const x = r() * W;
+    const y = r() * H;
+    const rad = 30 + r() * 80;
+    const grad = g.createRadialGradient(x, y, 0, x, y, rad);
+    const light = r() > 0.5;
+    grad.addColorStop(0, light ? 'rgba(255,225,190,0.07)' : 'rgba(30,14,4,0.08)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  for (let i = 0; i < 5200; i++) {
+    g.fillStyle = `rgba(${r() > 0.5 ? '255,235,210' : '20,8,0'},${0.03 + r() * 0.07})`;
+    g.fillRect(r() * W, r() * H, 1 + r() * 2, 1 + r() * 2);
+  }
+  // burnished edges
+  for (const [x0, x1] of [
+    [0, 34],
+    [W, W - 34],
+  ]) {
+    const grad = g.createLinearGradient(x0, 0, x1, 0);
+    grad.addColorStop(0, 'rgba(24,10,2,0.62)');
+    grad.addColorStop(0.3, 'rgba(24,10,2,0.22)');
+    grad.addColorStop(1, 'rgba(24,10,2,0)');
+    g.fillStyle = grad;
+    g.fillRect(Math.min(x0, x1), 0, 34, H);
   }
   if (stitch !== color) {
-    g.strokeStyle = stitch;
-    g.lineWidth = 2.6;
-    g.lineCap = 'round';
-    g.setLineDash([15, 10.6]);
-    for (const x of [15, 113]) {
+    // the groove the stitches lie in, then each stitch slanted, with its hole at either end
+    // the canvas is twice as fine along the strap as across it
+    const pitch = 64;
+    for (const x of [31, W - 31]) {
+      g.strokeStyle = 'rgba(20,8,0,0.3)';
+      g.lineWidth = 7;
       g.beginPath();
-      g.moveTo(x, 4);
-      g.lineTo(x, 256);
+      g.moveTo(x, 0);
+      g.lineTo(x, H);
       g.stroke();
+      for (let y = 4; y < H; y += pitch) {
+        g.fillStyle = 'rgba(12,5,0,0.7)';
+        g.beginPath();
+        g.ellipse(x - 3, y, 2.6, 5, 0, 0, Math.PI * 2);
+        g.ellipse(x + 3, y + pitch * 0.62, 2.6, 5, 0, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = 'rgba(20,8,0,0.35)';
+        g.lineWidth = 6.6;
+        g.lineCap = 'round';
+        g.beginPath();
+        g.moveTo(x - 2, y + 5);
+        g.lineTo(x + 4, y + pitch * 0.62 - 2);
+        g.stroke();
+        g.strokeStyle = stitch;
+        g.lineWidth = 4.2;
+        g.beginPath();
+        g.moveTo(x - 3, y + 4);
+        g.lineTo(x + 3, y + pitch * 0.62 - 4);
+        g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,0.28)';
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.moveTo(x - 3.8, y + 7);
+        g.lineTo(x + 1.6, y + pitch * 0.62 - 6);
+        g.stroke();
+      }
     }
   } else {
     // sailcloth weave
     g.strokeStyle = 'rgba(255,255,255,0.07)';
-    g.lineWidth = 1;
-    for (let y = 0; y < 256; y += 4) {
+    g.lineWidth = 1.4;
+    for (let y = 0; y < H; y += 6) {
       g.beginPath();
       g.moveTo(0, y);
-      g.lineTo(128, y);
+      g.lineTo(W, y);
       g.stroke();
     }
-    for (let x = 0; x < 128; x += 4) {
+    for (let x = 0; x < W; x += 6) {
       g.beginPath();
       g.moveTo(x, 0);
-      g.lineTo(x, 256);
+      g.lineTo(x, H);
       g.stroke();
     }
   }
@@ -275,9 +347,16 @@ function grain(p: Pen, amount: number, seed: number) {
 const ROMAN = ['XII', 'I', 'II', 'III', 'IIII', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
 const SUB: [number, number] = [0, -8.6];
 
-function subSeconds(p: Pen, d: DialSpec) {
+export interface DialOpts {
+  /** the hour indexes are applied in metal, so they are not printed */
+  applied?: boolean;
+  /** the seconds dial is a real well in the dial, so its lip and shadow are not painted */
+  sunk?: boolean;
+}
+
+function subSeconds(p: Pen, d: DialSpec, sunk = false) {
   const { g } = p;
-  const R = 4.3;
+  const R = sunk ? 4.1 : 4.3;
   g.save();
   g.translate(SUB[0], SUB[1]);
   g.fillStyle = d.ring;
@@ -285,17 +364,32 @@ function subSeconds(p: Pen, d: DialSpec) {
   g.arc(0, 0, R, 0, Math.PI * 2);
   g.fill();
   // azurage: fine concentric rings
-  for (let r = 0.3; r < R - 0.55; r += 0.115) ring(g, r, 0.035, 'rgba(60,45,30,0.16)');
-  // a soft shadow under the upper lip, so the sub-dial reads as sunk
-  const sh = g.createLinearGradient(0, R, 0, R - 1.3);
-  sh.addColorStop(0, 'rgba(40,28,18,0.34)');
-  sh.addColorStop(1, 'rgba(40,28,18,0)');
-  g.strokeStyle = sh;
-  g.lineWidth = 0.9;
-  g.beginPath();
-  g.arc(0, 0, R - 0.42, 0.05 * Math.PI, 0.95 * Math.PI);
-  g.stroke();
-  ring(g, R, 0.11, d.ink);
+  if (sunk) {
+    // the well itself: a touch of shade where the wall meets the floor, heaviest towards the light
+    g.fillStyle = d.ring;
+    g.beginPath();
+    g.arc(0, 0, 4.4, 0, Math.PI * 2);
+    g.fill();
+    const sh = g.createRadialGradient(-0.5, 0.7, 2.9, 0, 0, 4.2);
+    sh.addColorStop(0, 'rgba(40,28,18,0)');
+    sh.addColorStop(1, 'rgba(40,28,18,0.3)');
+    g.fillStyle = sh;
+    g.beginPath();
+    g.arc(0, 0, 4.4, 0, Math.PI * 2);
+    g.fill();
+  } else {
+    for (let r = 0.3; r < R - 0.55; r += 0.115) ring(g, r, 0.035, 'rgba(60,45,30,0.16)');
+    // a soft shadow under the upper lip, so the sub-dial reads as sunk
+    const sh = g.createLinearGradient(0, R, 0, R - 1.3);
+    sh.addColorStop(0, 'rgba(40,28,18,0.34)');
+    sh.addColorStop(1, 'rgba(40,28,18,0)');
+    g.strokeStyle = sh;
+    g.lineWidth = 0.9;
+    g.beginPath();
+    g.arc(0, 0, R - 0.42, 0.05 * Math.PI, 0.95 * Math.PI);
+    g.stroke();
+    ring(g, R, 0.11, d.ink);
+  }
   ring(g, R - 0.62, 0.05, d.ink);
   ticks(g, 60, R - 0.62, R - 0.14, 0.05, d.ink);
   ticks(g, 12, R - 0.95, R - 0.14, 0.1, d.ink);
@@ -312,7 +406,7 @@ function subSeconds(p: Pen, d: DialSpec) {
   g.restore();
 }
 
-function sectorDial(p: Pen, d: DialSpec) {
+function sectorDial(p: Pen, d: DialSpec, o: DialOpts) {
   const { g } = p;
   g.fillStyle = d.base;
   g.fillRect(-DIAL_R, -DIAL_R, DIAL_R * 2, DIAL_R * 2);
@@ -344,7 +438,7 @@ function sectorDial(p: Pen, d: DialSpec) {
     if (h % 2 === 0) {
       const flip = h > 3 && h < 9;
       label(g, ROMAN[h], x, y, h === 0 ? 2.5 : 2.2, `600 SIZE ${SERIF}`, d.ink, 0.02, a - Math.PI / 2 + (flip ? Math.PI : 0));
-    } else {
+    } else if (!o.applied) {
       g.fillStyle = d.ink;
       g.save();
       g.rotate(a);
@@ -357,7 +451,7 @@ function sectorDial(p: Pen, d: DialSpec) {
   g.fillRect(-5.6, 5.15, 11.2, 3.5);
   label(g, 'VALDARNO', 0, 7.5, 1.42, `600 SIZE ${SERIF}`, d.ink, 0.2);
   label(g, 'FIRENZE', 0, 5.95, 0.62, `500 SIZE ${SANS}`, d.ink, 0.42);
-  subSeconds(p, d);
+  subSeconds(p, d, o.sunk);
   label(g, 'CARICA MANUALE', -4.0, -14.05, 0.46, `500 SIZE ${SANS}`, d.ink, 0.3, (16 * Math.PI) / 180);
   label(g, 'FATTO A FIRENZE', 4.0, -14.05, 0.46, `500 SIZE ${SANS}`, d.ink, 0.3, (-16 * Math.PI) / 180);
 }
@@ -382,7 +476,7 @@ function classicDial(p: Pen, d: DialSpec) {
   label(g, 'Carica manuale', 0, -8.2, 1.0, `italic 500 SIZE ${SERIF}`, d.ink);
 }
 
-function diverDial(p: Pen, d: DialSpec) {
+function diverDial(p: Pen, d: DialSpec, o: DialOpts) {
   const { g } = p;
   const grad = g.createRadialGradient(0, 0, 0, 0, 0, DIAL_R);
   grad.addColorStop(0, d.ring);
@@ -390,6 +484,7 @@ function diverDial(p: Pen, d: DialSpec) {
   g.fillStyle = grad;
   g.fillRect(-DIAL_R, -DIAL_R, DIAL_R * 2, DIAL_R * 2);
   // sunray
+  const applied = !!o.applied;
   for (let i = 0; i < 720; i++) {
     const a = (i / 720) * Math.PI * 2;
     g.strokeStyle = `rgba(255,255,255,${0.012 + (i % 7) * 0.004})`;
@@ -410,7 +505,7 @@ function diverDial(p: Pen, d: DialSpec) {
     g.fillStyle = lume;
     draw();
   };
-  for (let h = 0; h < 12; h++) {
+  for (let h = 0; h < 12 && !applied; h++) {
     const a = Math.PI / 2 - (h / 12) * Math.PI * 2;
     g.save();
     g.rotate(a);
@@ -462,13 +557,55 @@ function gmtDial(p: Pen, d: DialSpec) {
   label(g, d.model, 0, -4.4, 0.72, `500 SIZE ${SANS}`, d.accent, 0.34);
 }
 
-export function dialTexture(d: DialSpec, size = 2048): THREE.CanvasTexture {
+export function dialTexture(d: DialSpec, size = 2048, o: DialOpts = {}): THREE.CanvasTexture {
   const [c, p] = pen(size);
-  if (d.style === 'sector') sectorDial(p, d);
+  if (d.style === 'sector') sectorDial(p, d, o);
   else if (d.style === 'classic') classicDial(p, d);
-  else if (d.style === 'diver') diverDial(p, d);
+  else if (d.style === 'diver') diverDial(p, d, o);
   else gmtDial(p, d);
   return asTexture(c, true, false);
+}
+
+/**
+ * The surface of a sector dial, as data: red is height, green roughness, blue metalness.
+ * The centre is frosted and dry; the chapter ring is turned on a lathe and takes the light like
+ * metal; the seconds dial is cut with fine concentric grooves.
+ */
+export function dialReliefTexture(d: DialSpec, size = 1024): THREE.CanvasTexture | null {
+  if (d.style !== 'sector') return null;
+  const [c, p] = pen(size);
+  const { g, S } = p;
+  const r = rng(41);
+  const px = (h: number, rough: number, metal: number, a = 1) => `rgba(${Math.round(h)},${Math.round(rough * 255)},${Math.round(metal * 255)},${a})`;
+  g.fillStyle = px(128, 0.6, 0.1);
+  g.fillRect(-DIAL_R, -DIAL_R, DIAL_R * 2, DIAL_R * 2);
+  g.save();
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  for (let i = 0; i < S * 60; i++) {
+    g.fillStyle = px(128 + (r() - 0.5) * 120, 0.52 + r() * 0.2, 0.1, 0.55);
+    g.fillRect(r() * S, r() * S, 1.4, 1.4);
+  }
+  g.restore();
+  // chapter ring: circular graining
+  g.fillStyle = px(128, 0.4, 0.62);
+  g.beginPath();
+  g.arc(0, 0, 14.7, 0, Math.PI * 2);
+  g.arc(0, 0, 11.35, 0, Math.PI * 2, true);
+  g.fill();
+  for (let rr = 11.38; rr < 14.68; rr += 0.034) ring(g, rr, 0.03, px(128 + (r() - 0.5) * 150, 0.3 + r() * 0.2, 0.62));
+  // a hairline step where the ring meets the centre and the minute track
+  ring(g, 11.35, 0.07, px(40, 0.5, 0.3));
+  ring(g, 14.7, 0.07, px(40, 0.5, 0.3));
+  // seconds dial: azurage
+  g.save();
+  g.translate(SUB[0], SUB[1]);
+  g.fillStyle = px(150, 0.34, 0.55);
+  g.beginPath();
+  g.arc(0, 0, 4.45, 0, Math.PI * 2);
+  g.fill();
+  for (let rr = 0.12; rr < 4.4; rr += 0.15) ring(g, rr, 0.07, px(56, 0.3, 0.55));
+  g.restore();
+  return asTexture(c, false, false);
 }
 
 /** Bezel inserts are painted flat and mapped onto a ring. `R` is the outer radius of the ring in mm. */
@@ -528,5 +665,39 @@ export function casebackTexture(text: string): THREE.CanvasTexture {
   g.textAlign = 'center';
   chars.forEach((ch, i) => g.fillText(ch, (i + 0.5) * adv, 34));
   const t = asTexture(c, true);
+  return t;
+}
+
+
+/** Lettering set round an arc, tops towards the centre: read from below, left to right. */
+function arcLabel(g: CanvasRenderingContext2D, text: string, r: number, centre: number, size: number, font: string, color: string, tracking = 0.12) {
+  const U = 100;
+  g.save();
+  g.font = font.replace('SIZE', `${size * U}px`);
+  const widths = [...text].map((ch) => g.measureText(ch).width / U + tracking * size);
+  g.restore();
+  const total = widths.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  [...text].forEach((ch, i) => {
+    const th = centre + (acc + widths[i] / 2 - total / 2) / r;
+    label(g, ch, Math.cos(th) * r, Math.sin(th) * r, size, font, color, 0, th + Math.PI / 2);
+    acc += widths[i];
+  });
+}
+
+/**
+ * The engraving on the train bridge, drawn as it is read through the caseback (so east and west are
+ * exchanged). Transparent but for the letters, which are filled with midnight lacquer.
+ */
+export function engravingTexture(size = 1024, jewels = 19): THREE.CanvasTexture {
+  const [c, p] = pen(size);
+  const { g } = p;
+  const ink = '#141d3d';
+  const at = (250 * Math.PI) / 180;
+  arcLabel(g, 'VALDARNO', 12.55, at - 0.2, 1.22, `600 SIZE ${SERIF}`, ink, 0.2);
+  arcLabel(g, 'FIRENZE', 12.62, at + 0.37, 0.7, `500 SIZE ${SANS}`, ink, 0.4);
+  arcLabel(g, `CAL. V.31  ·  ${jewels} RUBINI  ·  N° 001`, 10.75, at + 0.05, 0.6, `500 SIZE ${SANS}`, ink, 0.3);
+  const t = asTexture(c, true, false);
+  t.premultiplyAlpha = false;
   return t;
 }

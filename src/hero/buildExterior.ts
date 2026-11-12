@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { DEG, PLATE_T, TAU, gearOutline, type P2 } from '../lib/calibre';
 import type { WatchSpec } from '../lib/watches';
-import { SIDE_PROFILE, circlePts, cyl, extrudeZ, lathe, merge, shapeOf, sweep, type Frame } from './geo';
+import { SIDE_PROFILE, axisUV, circlePts, cyl, extrudeZ, facetGroups, gableBar, lathe, merge, ridgeBlade, shapeOf, sweep, type Frame } from './geo';
 import type { MatKey, MatLib } from './materials';
 import { PartBuilder, type Part } from './parts';
-import { bezelTexture, casebackTexture, dialTexture, strapTexture } from './textures';
+import { bezelTexture, casebackTexture, dialReliefTexture, dialTexture, strapTexture } from './textures';
 
 /** Heights along the watch axis; z = 0 is the dial-side face of the mainplate. */
 export const CASE = {
@@ -17,6 +17,8 @@ export const CASE = {
   dialR: 16.3,
 };
 export const SUB_SECONDS: P2 = [0, -8.6];
+/** the sunk seconds dial: radius at the lip, radius of the floor, and how far it is sunk */
+export const SUB = { lip: 4.3, floor: 4.14, depth: 0.3 };
 
 export interface ExteriorRefs {
   hour: THREE.Object3D;
@@ -43,24 +45,35 @@ const part = (ctx: Ctx, id: Part['id'], explode: [number, number, number], ancho
   return b;
 };
 
+/** The right-hand edge of a feuille hand, from the boss to the point. */
 function leaf(L: number, W: number): P2[] {
-  const n = 22;
+  const n = 30;
   const right: P2[] = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
-    const y = 0.6 + (L - 0.6) * t;
-    const hw = W * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.6)), 0.9) + 0.15 * (1 - t);
-    right.push([hw, y]);
+    const y = 0.5 + (L - 0.5) * t;
+    const hw = W * Math.pow(Math.sin(Math.PI * Math.pow(t, 0.6)), 0.9) + 0.16 * (1 - t);
+    right.push([Math.max(hw, 0.0005), y]);
   }
-  const left = right
-    .slice(0, -1)
-    .reverse()
-    .map(([x, y]) => [-x, y] as P2);
-  return [...right, ...left];
+  return right;
 }
 
-function handGeometry(pts: P2[], bossR: number, z: number, thick = 0.2): THREE.BufferGeometry {
-  return merge([extrudeZ(shapeOf(pts), z, z + thick, 0.075), cyl(bossR, z - 0.02, z + thick + 0.04, 28)]);
+/** A turned boss with a polished chamfer round its top. */
+function boss(r: number, z0: number, z1: number, ch = 0.09, at: P2 = [0, 0]): THREE.BufferGeometry {
+  return lathe(
+    [
+      { pts: [[r, z0], [r, z1 - ch]] },
+      { pts: [[r, z1 - ch], [r - ch, z1]] },
+      { pts: [[r - ch, z1], [0.0001, z1]] },
+    ],
+    32,
+  ).translate(at[0], at[1], 0);
+}
+
+/** A flat hand: grained along its length on top, with a polished bevel round the edge. Groups: 0 face, 1 bevel. */
+function flatHand(pts: P2[], z: number, thick = 0.2): THREE.BufferGeometry {
+  const g = axisUV(extrudeZ(shapeOf(pts), z, z + thick, 0.08), 1, 0, 5);
+  return facetGroups(g, { plus: 0, minus: 0, wall: 1, bevel: 1 });
 }
 
 export function buildExterior(ctx: Ctx): ExteriorRefs {
@@ -70,6 +83,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
   const BRU: MatKey = gold ? 'goldBrushed' : 'steelBrushed';
   const segs = ctx.detail >= 1 ? 144 : 80;
   const diver = spec.bezel === 'dive';
+  const sunk = spec.seconds === 'small' && spec.dial.style === 'sector';
 
   /* ---------------- crystal ---------------- */
   {
@@ -98,18 +112,20 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
   {
     const b = part(ctx, 'bezel', [0, 0, 39], [-17.6, -4, 2.4]);
     if (spec.bezel === 'smooth') {
+      // a stepped bezel: a polished chamfer, a circular-grained band, and a polished lip to hold the crystal
       const geo = lathe(
         [
-          { pts: [[19.3, 1.3], [19.3, 1.52]] },
-          { pts: [[19.3, 1.52], [19.05, 2.1], [18.5, 2.56], [17.7, 2.84]], smooth: true },
-          { pts: [[17.7, 2.84], [16.98, 2.86]] },
-          { pts: [[16.98, 2.86], [16.75, 2.68]] },
+          { pts: [[19.3, 1.3], [19.3, 1.5]] },
+          { pts: [[19.3, 1.5], [19.14, 1.86], [18.86, 2.16], [18.5, 2.36]], smooth: true },
+          { pts: [[18.5, 2.36], [17.5, 2.6]], mat: 1 },
+          { pts: [[17.5, 2.6], [17.3, 2.8], [16.98, 2.88]], smooth: true },
+          { pts: [[16.98, 2.88], [16.75, 2.68]] },
           { pts: [[16.75, 2.68], [16.75, 1.3]] },
           { pts: [[16.75, 1.3], [19.3, 1.3]] },
         ],
         segs,
       );
-      b.mesh(geo, POL);
+      b.mesh(geo, [b.mat(POL), b.mat(gold ? 'goldCircular' : 'steelCircular')]);
     } else {
       const R = diver ? 19.85 : 19.4;
       if (diver) {
@@ -158,8 +174,8 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
     refs.hour = hour;
     refs.minute = minute;
     if (spec.hands === 'leaf') {
-      b.mesh(handGeometry(leaf(9.9, 0.98), 1.2, 0.92), HM, { parent: hour });
-      b.mesh(handGeometry(leaf(14.7, 0.74), 0.95, 1.22), HM, { parent: minute });
+      b.mesh(merge([ridgeBlade(leaf(9.9, 1.02), 0.92, 0.07, 0.25), boss(1.2, 0.9, 1.2)]), HM, { parent: hour, edges: 24 });
+      b.mesh(merge([ridgeBlade(leaf(14.7, 0.78), 1.24, 0.06, 0.22), boss(0.95, 1.22, 1.5)]), HM, { parent: minute, edges: 24 });
     } else {
       const sword = spec.hands === 'sword';
       const blade = (L: number, w: number): P2[] =>
@@ -170,9 +186,12 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
         sword
           ? [[-w * 0.3, 1.9], [w * 0.3, 1.9], [w * 0.62, L - 2.75], [0, L - 0.95], [-w * 0.62, L - 2.75]]
           : [[-w * 0.3, 2.0], [w * 0.3, 2.0], [w * 0.3, L - 0.5], [-w * 0.3, L - 0.5]];
-      b.mesh(handGeometry(blade(9.6, 1.02), 1.25, 0.92), HM, { parent: hour });
+      const faces = () => [b.mat(spec.handMetal === 'gold' ? 'goldBrushed' : 'steelBrushed'), b.mat(HM)];
+      b.mesh(flatHand(blade(9.6, 1.02), 0.92), faces(), { parent: hour });
+      b.mesh(boss(1.25, 0.9, 1.18), HM, { parent: hour });
       b.mesh(extrudeZ(shapeOf(fill(9.6, 1.02)), 1.1, 1.14), lumeMat(), { parent: hour, edges: false, cast: false });
-      b.mesh(handGeometry(blade(14.3, 0.78), 1.0, 1.22), HM, { parent: minute });
+      b.mesh(flatHand(blade(14.3, 0.78), 1.22), faces(), { parent: minute });
+      b.mesh(boss(1.0, 1.2, 1.48), HM, { parent: minute });
       b.mesh(extrudeZ(shapeOf(fill(14.3, 0.78)), 1.4, 1.44), lumeMat(), { parent: minute, edges: false, cast: false });
     }
     if (spec.gmtHand) {
@@ -180,7 +199,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       refs.gmt = g;
       const arrow: P2[] = [[-0.16, -1.4], [0.16, -1.4], [0.16, 11.1], [0.95, 11.1], [0, 13.4], [-0.95, 11.1], [-0.16, 11.1]];
       const paint = mats.custom(new THREE.MeshStandardMaterial({ color: spec.dial.accent, roughness: 0.5, metalness: 0.1 }), b.part.ink);
-      b.mesh(handGeometry(arrow, 0.85, 0.66, 0.16), paint, { parent: g });
+      b.mesh(merge([extrudeZ(shapeOf(arrow), 0.66, 0.82, 0.05), cyl(0.85, 0.64, 0.86, 28)]), paint, { parent: g });
     }
     if (spec.seconds === 'centre') {
       const g = b.group();
@@ -191,7 +210,17 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       b.mesh(merge(geos), 'steelPolished', { parent: g });
       if (diver) b.mesh(extrudeZ(shapeOf(circlePts(0.52, 20, [0, 10.4])), 1.62, 1.65), lumeMat(), { parent: g, edges: false, cast: false });
     }
-    b.mesh(cyl(0.58, 0.4, 1.78, 24), 'steelPolished');
+    // the cannon pinion, capped
+    b.mesh(
+      lathe(
+        [
+          { pts: [[0.56, 0.4], [0.56, 1.66]] },
+          { pts: [[0.56, 1.66], [0.5, 1.76], [0.36, 1.83], [0.0001, 1.86]], smooth: true },
+        ],
+        28,
+      ),
+      spec.handMetal === 'gold' ? 'goldPolished' : 'steelPolished',
+    );
     b.proxy(cyl(9, 0.6, 1.9, 12), hour).scale.set(0.16, 1.1, 1);
     b.proxy(cyl(13, 0.6, 1.9, 12), minute).scale.set(0.12, 1.12, 1);
     b.part.inner = (e) => {
@@ -205,12 +234,14 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       const g = b.group();
       g.position.set(SUB_SECONDS[0], SUB_SECONDS[1], 0);
       refs.smallSeconds = g;
-      const needle: P2[] = [[-0.1, -1.25], [0.1, -1.25], [0.055, 3.7], [-0.055, 3.7]];
+      // sits lower when the seconds dial is sunk
+      const zs = sunk ? 0.5 : 0.68;
+      const needle: P2[] = [[-0.1, -1.25], [0.1, -1.25], [0.05, 3.62], [-0.05, 3.62]];
       const geo = merge([
-        extrudeZ(shapeOf(needle), 0.68, 0.78, 0.03),
-        extrudeZ(shapeOf(circlePts(0.36, 20, [0, -1.25])), 0.68, 0.78, 0.03),
-        cyl(0.4, 0.66, 0.84, 20),
-        cyl(0.17, 0.4, 0.9, 12),
+        extrudeZ(shapeOf(needle), zs, zs + 0.1, 0.035),
+        extrudeZ(shapeOf(circlePts(0.4, 24, [0, -1.25])), zs, zs + 0.1, 0.035),
+        boss(0.42, zs - 0.02, zs + 0.17, 0.06),
+        cyl(0.17, sunk ? 0.12 : 0.4, zs + 0.22, 12),
       ]);
       const HM: MatKey = spec.handMetal === 'blued' ? 'blued' : 'steelPolished';
       b.mesh(geo, HM, { parent: g });
@@ -221,15 +252,33 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
   /* ---------------- dial ---------------- */
   {
     const b = part(ctx, 'dial', [0, 0, 19.5], [-9.2, 9.6, CASE.dialTop]);
-    const map = dialTexture(spec.dial, ctx.textureSize);
+    const applied = spec.applied !== 'none';
+    const map = dialTexture(spec.dial, ctx.textureSize, { applied: applied || diver, sunk });
     ctx.disposables.push(map);
-    const face = new THREE.CircleGeometry(CASE.dialR, segs);
-    face.translate(0, 0, CASE.dialTop + 0.002);
+    const relief = dialReliefTexture(spec.dial, ctx.textureSize / 2);
+    if (relief) ctx.disposables.push(relief);
+    const zt = CASE.dialTop + 0.002;
+    const dialUV = (g: THREE.BufferGeometry) => axisUV(g, 0, 1, CASE.dialR * 2, [0.5, 0.5]);
     const lacquer = spec.dial.style === 'diver' || spec.dial.style === 'classic';
+    // The relief map carries height, roughness and metalness: a frosted centre, a grained chapter ring
+    // that takes the light like metal, and the fine turning of the seconds dial.
     const faceMat = lacquer
       ? new THREE.MeshPhysicalMaterial({ map, metalness: 0, roughness: 0.42, clearcoat: 0.9, clearcoatRoughness: 0.12 })
-      : new THREE.MeshStandardMaterial({ map, metalness: spec.dial.style === 'sector' ? 0.08 : 0.04, roughness: 0.62 });
-    b.mesh(face, mats.custom(faceMat, b.part.ink), { edges: false, cast: true, receive: true });
+      : relief
+        ? new THREE.MeshStandardMaterial({ map, metalness: 1, roughness: 1, metalnessMap: relief, roughnessMap: relief, bumpMap: relief, bumpScale: 0.2 })
+        : new THREE.MeshStandardMaterial({ map, metalness: 0.04, roughness: 0.62 });
+    faceMat.userData.matte = true;
+    const dialMat = mats.custom(faceMat, b.part.ink);
+    const holes = sunk ? [circlePts(SUB.lip, 72, SUB_SECONDS).reverse()] : [];
+    const face = dialUV(new THREE.ShapeGeometry(shapeOf(circlePts(CASE.dialR, segs), holes)).translate(0, 0, zt));
+    b.mesh(face, dialMat, { edges: false, cast: true, receive: true });
+    if (sunk) {
+      const floor = dialUV(new THREE.CircleGeometry(SUB.floor + 0.02, 72).translate(SUB_SECONDS[0], SUB_SECONDS[1], zt - SUB.depth));
+      b.mesh(floor, dialMat, { edges: false, cast: false, receive: true });
+      // the wall of the well is cut at an angle and polished: a bright ring round the seconds
+      const wall = lathe([{ pts: [[SUB.lip, zt], [SUB.floor, zt - SUB.depth]] }], 72).translate(SUB_SECONDS[0], SUB_SECONDS[1], 0);
+      b.mesh(wall, 'steelPolished', { cast: false, receive: true });
+    }
     const body = lathe(
       [
         { pts: [[0.0001, 0], [CASE.dialR, 0]] },
@@ -238,24 +287,53 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       segs,
     );
     b.mesh(body, 'brass');
-    if (spec.applied !== 'none') {
+    if (applied) {
+      // applied indexes, each a small roofed bar: one flank takes the light, the other the dark
       const geos: THREE.BufferGeometry[] = [];
+      const z = CASE.dialTop;
       for (let h = 0; h < 12; h++) {
-        if (spec.applied === 'gold' && h === 0) continue;
         const a = Math.PI / 2 - (h / 12) * TAU;
-        const quarter = h % 3 === 0;
-        const mk = (off: number) => {
-          const g = new THREE.BoxGeometry(quarter ? 3.1 : 2.5, 0.52, 0.3);
-          g.translate(12.55, off, CASE.dialTop + 0.15);
-          g.rotateZ(a);
-          geos.push(g);
-        };
+        if (spec.applied === 'blued') {
+          if (h % 2 === 0) continue;
+          geos.push(gableBar(11.95, 14.12, 0.5, z, 0.1, 0.27).rotateZ(a));
+          continue;
+        }
+        if (spec.applied === 'gold' && h === 0) continue;
+        const half = h % 3 === 0 ? 1.55 : 1.25;
+        const mk = (off: number) => geos.push(gableBar(12.55 - half, 12.55 + half, 0.54, z, 0.12, 0.32).translate(0, off, 0).rotateZ(a));
         if (spec.applied === 'steel' && h === 0) {
           mk(0.42);
           mk(-0.42);
         } else mk(0);
       }
-      b.mesh(merge(geos), spec.applied === 'gold' ? 'goldPolished' : 'steelPolished', { cast: true });
+      b.mesh(merge(geos), spec.applied === 'gold' ? 'goldPolished' : spec.applied === 'blued' ? 'blued' : 'steelPolished', { cast: true, edges: 20 });
+    }
+    if (diver) {
+      // lume plots in polished steel surrounds, standing off the dial
+      const rims: THREE.BufferGeometry[] = [];
+      const fills: THREE.BufferGeometry[] = [];
+      const z = CASE.dialTop;
+      for (let h = 0; h < 12; h++) {
+        const a = Math.PI / 2 - (h / 12) * TAU;
+        const outline: P2[] =
+          h === 0
+            ? [[-1.5, 0], [1.3, -1.45], [1.3, 1.45]]
+            : h % 3 === 0
+              ? [[-1.5, -0.62], [1.5, -0.62], [1.5, 0.62], [-1.5, 0.62]]
+              : circlePts(0.98, 28);
+        const grow = (k: number) => outline.map(([x, y]) => [x * k + (h === 0 ? 0.37 * (k - 1) : 0), y * k] as P2);
+        rims.push(extrudeZ(shapeOf(grow(1.16)), z, z + 0.3, 0.07).translate(12.4, 0, 0).rotateZ(a));
+        fills.push(extrudeZ(shapeOf(grow(0.94)), z + 0.28, z + 0.34, 0.02).translate(12.4, 0, 0).rotateZ(a));
+      }
+      b.mesh(merge(rims), 'steelPolished', { cast: true });
+      b.mesh(
+        merge(fills),
+        mats.custom(
+          new THREE.MeshStandardMaterial({ color: spec.dial.lume ?? '#e7eedb', roughness: 0.9, metalness: 0, emissive: '#aebfa0', emissiveIntensity: 0.14 }),
+          b.part.ink,
+        ),
+        { edges: false, cast: false },
+      );
     }
     b.proxy(cyl(CASE.dialR, 0, 0.5, 28));
   }
@@ -315,7 +393,8 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
     lug.lineTo(23.1, CASE.bottom + 0.1);
     lug.lineTo(14.4, CASE.bottom);
     const lugGeo = () => {
-      const g = new THREE.ExtrudeGeometry(lug, { depth: 2.3, bevelEnabled: true, bevelSize: 0.22, bevelThickness: 0.22, bevelOffset: -0.22, bevelSegments: 2, curveSegments: 18 });
+      const g = new THREE.ExtrudeGeometry(lug, { depth: 1.74, bevelEnabled: true, bevelSize: 0.28, bevelThickness: 0.28, bevelOffset: -0.28, bevelSegments: 1, curveSegments: 22 });
+      g.translate(0, 0, 0.28);
       g.applyMatrix4(SIDE_PROFILE);
       return g;
     };
@@ -331,7 +410,10 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
     const tube = new THREE.CylinderGeometry(1.5, 1.5, 0.5, 20);
     tube.rotateZ(-Math.PI / 2);
     tube.translate(19.55, 0, CASE.stemZ);
-    const extras: THREE.BufferGeometry[] = [...lugs, ...bars, tube];
+    // lugs: grained along their length on top, polished on the flanks and along the chamfer
+    const lugSolid = facetGroups(axisUV(merge(lugs), 1, 0, 9), { plus: 0, minus: 0, wall: 1, bevel: 0 }, [1, 0, 0], 0.5);
+    b.mesh(lugSolid, [b.mat(POL), b.mat(BRU)]);
+    const extras: THREE.BufferGeometry[] = [...bars, tube];
     if (spec.crownGuards) {
       const guard: P2[] = [[18.4, 1.9], [22.0, 2.2], [22.5, 3.0], [21.9, 4.5], [18.0, 6.0]];
       const g1 = extrudeZ(shapeOf(guard), -3.9, 0.7, 0.3);

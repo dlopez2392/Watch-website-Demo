@@ -33,6 +33,8 @@ interface Card {
   power: number;
   flag?: number;
   roll?: number;
+  /** glazing bars: the key is a window, and a window is what a domed crystal should show */
+  bars?: boolean;
 }
 
 function cardMask(d: V3, c: Card): number {
@@ -49,31 +51,46 @@ function cardMask(d: V3, c: Card): number {
     up = [up[0] * cs - right[0] * sn, up[1] * cs - right[1] * sn, up[2] * cs - right[2] * sn];
     right = r2;
   }
-  const x = Math.abs(dot(d, right) / k);
-  const y = Math.abs(dot(d, up) / k);
-  return (1 - smooth(c.w * (1 - c.soft), c.w, x)) * (1 - smooth(c.h * (1 - c.soft), c.h, y));
+  const sx = dot(d, right) / k;
+  const sy = dot(d, up) / k;
+  const x = Math.abs(sx);
+  const y = Math.abs(sy);
+  let m = (1 - smooth(c.w * (1 - c.soft), c.w, x)) * (1 - smooth(c.h * (1 - c.soft), c.h, y));
+  if (c.bars && m > 0) {
+    const bx = Math.abs(Math.abs(sx / c.w) - 0.3);
+    const by = Math.abs(sy / c.h + 0.08);
+    m *= 0.22 + 0.78 * Math.min(smooth(0.03, 0.07, bx), smooth(0.035, 0.085, by));
+  }
+  return m;
 }
 
 const PAPER: V3 = [0.93, 0.85, 0.7];
 
 function cards(dark: boolean): Card[] {
   return [
-    // key: broad and soft, upper left, in front
-    { dir: [-0.58, 0.6, 0.55], w: 0.62, h: 0.46, soft: 0.6, color: [1, 0.95, 0.87], power: dark ? 3.4 : 3.5 },
+    // key: a tall north window, upper left and in front. It falls off from its centre, so a polished
+    // curve carries a gradient across it and not a flat white
+    { dir: [-0.6, 0.58, 0.55], w: 0.4, h: 0.48, soft: 0.8, color: [1, 0.95, 0.87], power: dark ? 3.4 : 3.1, bars: true },
+    // a pale wall to the right, so the far side of the case is a tone and not a hole
+    { dir: [0.82, 0.22, 0.52], w: 0.5, h: 0.7, soft: 1, color: [0.86, 0.9, 1], power: dark ? 0.42 : 0.5 },
     // the sweep overhead and behind: what a dial-up disc reflects. Graded, so stripes and graining show
-    { dir: [0.05, 0.9, -0.42], w: 1.25, h: 0.42, soft: 0.85, color: [1, 0.97, 0.92], power: dark ? 0.6 : 0.62 },
+    { dir: [0.05, 0.9, -0.42], w: 1.25, h: 0.42, soft: 0.85, color: [1, 0.97, 0.92], power: dark ? 0.7 : 0.66 },
+    // its twin below: what the bridges reflect once the movement is turned to show its back
+    { dir: [0.0, -0.93, -0.37], w: 1.1, h: 0.44, soft: 0.9, color: [1, 0.93, 0.8], power: dark ? 1.0 : 0.85 },
     // hard strips: the bright lines along a polished bevel
-    { dir: [0.97, 0.1, 0.22], w: 0.055, h: 1.1, soft: 0.25, color: [1, 1, 1], power: 20 },
-    { dir: [-0.92, -0.08, -0.38], w: 0.05, h: 0.9, soft: 0.25, color: [0.78, 0.86, 1], power: 10 },
-    { dir: [0.1, 0.99, 0.12], w: 0.9, h: 0.045, soft: 0.3, color: [1, 1, 1], power: 12 },
-    // a small hot kicker for sparkle on jewels and screw heads
-    { dir: [0.32, 0.48, 0.82], w: 0.07, h: 0.07, soft: 0.5, color: [1, 1, 1], power: 16 },
+    { dir: [0.97, 0.1, 0.22], w: 0.05, h: 1.1, soft: 0.25, color: [1, 1, 1], power: 13 },
+    { dir: [-0.92, -0.08, -0.38], w: 0.05, h: 0.9, soft: 0.25, color: [0.78, 0.86, 1], power: 9 },
+    { dir: [0.1, 0.99, 0.12], w: 0.9, h: 0.04, soft: 0.3, color: [1, 1, 1], power: 9 },
+    // a small hot kicker for sparkle on jewels and screw heads, well clear of the camera
+    { dir: [0.52, 0.62, 0.58], w: 0.055, h: 0.055, soft: 0.5, color: [1, 1, 1], power: 13 },
     // low warm fill from the front
-    { dir: [0.2, -0.5, 0.84], w: 0.8, h: 0.3, soft: 0.8, color: [1, 0.9, 0.78], power: dark ? 0.9 : 1.5 },
+    { dir: [0.2, -0.55, 0.8], w: 0.8, h: 0.26, soft: 0.85, color: [1, 0.9, 0.78], power: dark ? 0.7 : 1.1 },
     // flags: darkness with a shape, so steel has an edge to it
     { dir: [0.66, 0.34, 0.67], w: 0.2, h: 0.75, soft: 0.5, color: [0, 0, 0], power: 0, flag: 0.92 },
-    { dir: [-0.15, -0.2, 0.97], w: 0.5, h: 0.16, soft: 0.6, color: [0, 0, 0], power: 0, flag: 0.8 },
     { dir: [-0.95, 0.3, 0.1], w: 0.14, h: 0.6, soft: 0.5, color: [0, 0, 0], power: 0, flag: 0.85 },
+    // the camera: a dark shape where the viewer stands. A grained surface smears its reflection between
+    // this and the lights, which is what makes circular graining and a sunray turn with the watch
+    { dir: [0, 0, 1], w: 0.34, h: 0.34, soft: 0.6, color: [0, 0, 0], power: 0, flag: 0.9 },
   ];
 }
 

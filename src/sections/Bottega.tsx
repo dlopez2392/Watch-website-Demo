@@ -41,7 +41,7 @@ const CRAFTS = [
     it: 'Perlatura',
     en: 'Perlage and stripes',
     body: 'Plates are grained in overlapping circles, one at a time, and bridges striped in long even passes. Nobody will see most of it. That is rather the point.',
-    art: <Loop className="craft-art" name="film-movement" label="Macro film of a finished movement: the balance wheel swinging beside striped bridges, ruby jewels and blued screws." />,
+    art: <Loop className="craft-art" name="film-calibro" label="Film of the Calibro V.31 from the bridge side: the balance swinging under its cock beside striped gilt bridges, ruby jewels and blued screws." />,
   },
   {
     it: 'Azzurratura',

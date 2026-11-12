@@ -18,8 +18,16 @@ export interface WatchModel {
   ink(amount: (p: Part) => number, dpr: number, w: number, h: number): void;
   /** how strongly the sapphire reflects the studio: high when the crystal floats alone, low over the dial */
   glass(k: number): void;
+  /**
+   * Dry surfaces (dial, leather, lume) take less from the surrounding studio and more from the key,
+   * so that what stands above them throws a shadow that can be seen. Call when the environment is ready.
+   */
+  matte(env: THREE.Texture, k: number): void;
   dispose(): void;
 }
+
+/** the height in the stack below which parts are shown from the bridge side */
+export const TURN_Z = -14;
 
 const SANGUINE = INK.sanguine.clone();
 const SEPIA = INK.line.clone();
@@ -29,6 +37,14 @@ export function buildWatch(spec: WatchSpec, opts: { movement: boolean; detail: n
   const ctx: Ctx = { spec, mats, detail: opts.detail, textureSize: opts.textureSize, parts: [], disposables: [], glass: [] };
   const ext: ExteriorRefs = buildExterior(ctx);
   const mov: MovementRefs | null = opts.movement ? buildMovement(ctx) : null;
+
+  // Below the escapement the stack is read from the back, where whatever lies lower is nearer the eye.
+  // The plates there are given more room, and the case, back and strap are sent well clear of the movement.
+  const OUTER: PartId[] = ['caseMiddle', 'crown', 'caseback', 'strap', 'buckle'];
+  for (const p of ctx.parts) {
+    if (p.explode.z < TURN_Z) p.explode.z = TURN_Z + (p.explode.z - TURN_Z) * 1.6;
+    if (OUTER.includes(p.id)) p.explode.z -= p.id === 'strap' || p.id === 'buckle' ? 62 : p.id === 'caseback' ? 22 : 17;
+  }
 
   const root = new THREE.Group();
   root.name = spec.id;
@@ -100,5 +116,23 @@ export function buildWatch(spec: WatchSpec, opts: { movement: boolean; detail: n
     for (const m of ctx.glass) m.specularIntensity = k;
   };
 
-  return { root, parts, byId, tick, pose, ink, glass, dispose };
+  const dry: THREE.MeshStandardMaterial[] = [];
+  root.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+    for (const one of Array.isArray(m) ? m : m ? [m] : []) {
+      if (one.userData.matte && !dry.includes(one as THREE.MeshStandardMaterial)) dry.push(one as THREE.MeshStandardMaterial);
+    }
+  });
+  let envSeen: THREE.Texture | null = null;
+  const matte: WatchModel['matte'] = (env, k) => {
+    if (envSeen === env) return;
+    envSeen = env;
+    for (const m of dry) {
+      m.envMap = env;
+      m.envMapIntensity = k;
+      m.needsUpdate = true;
+    }
+  };
+
+  return { root, parts, byId, tick, pose, ink, glass, matte, dispose };
 }

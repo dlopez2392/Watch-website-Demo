@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "assets:stills": "node scripts/render-stills.mjs",
-    "assets:generate": "node scripts/higgsfield.mjs images && node scripts/higgsfield.mjs videos && node scripts/optimize-media.mjs"
+    "assets:generate": "node scripts/higgsfield.mjs images && node scripts/higgsfield.mjs videos && node scripts/optimize-media.mjs",
+    "assets:photos": "node scripts/hf-photo.mjs && node scripts/optimize-photos.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jost": "^5.3.0",

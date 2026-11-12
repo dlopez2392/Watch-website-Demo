@@ -27,9 +27,13 @@ import {
   type Gear,
   type P2,
 } from '../lib/calibre';
-import { circlePts, cyl, extrudeZ, lathe, merge, ribbon, shapeOf, spokeWindows } from './geo';
+import { circlePts, cyl, discInPoly, extrudeZ, facetGroups, lathe, merge, polarUV, ribbon, shapeOf, spokeWindows } from './geo';
 import type { Ctx } from './buildExterior';
 import { PartBuilder, type Part } from './parts';
+import { engravingTexture } from './textures';
+
+/** the engraving is drawn on the same square as the dials: 32.6 mm across */
+const DIAL_SPAN = 32.6;
 
 export interface MovementRefs {
   barrel: THREE.Object3D;
@@ -59,10 +63,29 @@ function wheelGeo(g: Gear, m: number, opts: { spokes: number; rim: number; hub: 
   const t = opts.thick ?? 0.16;
   const rimIn = pitchR(g) - g.m * 1.25 - opts.rim;
   const shape = shapeOf(gearOutline(g), spokeWindows(rimIn, opts.hub, opts.spokes, opts.spokeW, 0.3));
-  return extrudeZ(shape, zOf(m + t / 2), zOf(m - t / 2), 0.03);
+  return turned(extrudeZ(shape, zOf(m + t / 2), zOf(m - t / 2), 0.045));
+}
+
+/** A flat part off the lathe: circular grain on both faces (group 0), polished edges and bevels (group 1). */
+const turned = (g: THREE.BufferGeometry) => facetGroups(polarUV(g), { plus: 0, minus: 0, wall: 1, bevel: 1 });
+
+/** Holes through a bridge for the jewels and screws that sit in it; the bevel of the extrusion turns each into a polished sink. */
+function sinks(outline: P2[], level: number, on: string[]): P2[][] {
+  const holes: P2[][] = [];
+  for (const j of JEWELS) {
+    const r = j.r + (j.chaton ? 0.38 : 0.04);
+    if (j.level === level && discInPoly(j.at, r + 0.35, outline)) holes.push(circlePts(r, 28, j.at).reverse());
+  }
+  for (const sc of SCREWS) {
+    if (on.includes(sc.on) && discInPoly(sc.at, 1.2, outline)) holes.push(circlePts(0.8, 24, sc.at).reverse());
+  }
+  return holes;
 }
 
 const pinionGeo = (g: Gear, span: P2) => extrudeZ(shapeOf(gearOutline(g, { add: 0.9, ded: 1.1 })), zOf(span[1]), zOf(span[0]), 0.03);
+
+/** Seen from the back: stripes on the face turned to the viewer, satin underneath and on the flanks, polished anglage. */
+const BRIDGE_FACES = { plus: 1, minus: 0, wall: 1, bevel: 2 };
 
 export function buildMovement(ctx: Ctx): MovementRefs {
   const refs = {} as MovementRefs;
@@ -81,7 +104,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       segs,
       { planarUV: 4.6 },
     );
-    b.mesh(plate, [b.mat('plate'), b.mat('steelFrosted')], { receive: true });
+    b.mesh(plate, [b.mat('plate'), b.mat('bridgeSide')], { receive: true });
     // motion works and keyless cover, on the dial side
     const hourW = extrudeZ(shapeOf(gearOutline(GEAR.hourWheel)), 0.04, 0.26, 0.03);
     const minW = extrudeZ(shapeOf(gearOutline(GEAR.minuteWheel)), 0.04, 0.22, 0.03).translate(AX.minuteWheel[0], AX.minuteWheel[1], 0);
@@ -100,7 +123,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const g = at(b.group(), AX.barrel);
     refs.barrel = g;
     const floor = extrudeZ(shapeOf(gearOutline(GEAR.barrel)), zOf(LV.barrelTeeth[1]), zOf(LV.barrelTeeth[0]), 0.03);
-    b.mesh(floor, 'brass', { parent: g });
+    b.mesh(turned(floor), [b.mat('brass'), b.mat('brassPolished')], { parent: g });
     const wall = lathe(
       [
         { pts: [[6.42, zOf(1.2)], [6.42, zOf(0.25)]], mat: 0 },
@@ -135,7 +158,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'centreWheel', [0, 0, -3], [3.6, 3.4, zOf(LV.centreWheel)]);
     const g = at(b.group(), AX.centre);
     refs.centre = g;
-    b.mesh(wheelGeo(GEAR.centreWheel, LV.centreWheel, { spokes: 5, rim: 0.5, hub: 1.0, spokeW: 0.52 }), 'brass', { parent: g });
+    b.mesh(wheelGeo(GEAR.centreWheel, LV.centreWheel, { spokes: 5, rim: 0.5, hub: 1.0, spokeW: 0.52 }), [b.mat('brass'), b.mat('brassPolished')], { parent: g });
     b.mesh(merge([pinionGeo(GEAR.centrePinion, LV.centrePinion), cyl(0.42, zOf(LV.bridge[0]), 0.38, 16)]), 'steelPolished', { parent: g });
     b.proxy(cyl(5.3, zOf(1.95), zOf(1.1), 20), g);
   }
@@ -143,7 +166,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'thirdWheel', [0, 0, -5.5], [AX.third[0] + 2.7, AX.third[1] - 2.6, zOf(LV.thirdWheel)]);
     const g = at(b.group(), AX.third);
     refs.third = g;
-    b.mesh(wheelGeo(GEAR.thirdWheel, LV.thirdWheel, { spokes: 5, rim: 0.42, hub: 0.72, spokeW: 0.4 }), 'brass', { parent: g });
+    b.mesh(wheelGeo(GEAR.thirdWheel, LV.thirdWheel, { spokes: 5, rim: 0.42, hub: 0.72, spokeW: 0.4 }), [b.mat('brass'), b.mat('brassPolished')], { parent: g });
     b.mesh(merge([pinionGeo(GEAR.thirdPinion, LV.thirdPinion), cyl(0.22, zOf(LV.bridge[0]), zOf(0.02), 12)]), 'steelPolished', { parent: g });
     b.proxy(cyl(4.05, zOf(2.4), zOf(1.5), 20), g);
   }
@@ -151,7 +174,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'fourthWheel', [0, 0, -8], [AX.fourth[0] + 2.2, AX.fourth[1] - 3.2, zOf(LV.fourthWheel)]);
     const g = at(b.group(), AX.fourth);
     refs.fourth = g;
-    b.mesh(wheelGeo(GEAR.fourthWheel, LV.fourthWheel, { spokes: 6, rim: 0.4, hub: 0.7, spokeW: 0.36 }), 'brass', { parent: g });
+    b.mesh(wheelGeo(GEAR.fourthWheel, LV.fourthWheel, { spokes: 6, rim: 0.4, hub: 0.7, spokeW: 0.36 }), [b.mat('brass'), b.mat('brassPolished')], { parent: g });
     b.mesh(merge([pinionGeo(GEAR.fourthPinion, LV.fourthPinion), cyl(0.2, zOf(LV.bridge[0]), 0.62, 12)]), 'steelPolished', { parent: g });
     b.proxy(cyl(4.1, zOf(2.45), zOf(1.2), 20), g);
   }
@@ -230,14 +253,17 @@ export function buildMovement(ctx: Ctx): MovementRefs {
   /* ---------------- balance cock ---------------- */
   {
     const b = part(ctx, 'balanceCock', [0, 0, -23], [COCK_FOOT[0], COCK_FOOT[1], zOf(LV.cock[1])]);
-    const arm = extrudeZ(shapeOf(segsToPoints(cockSegs())), zOf(LV.cock[1]), zOf(LV.cock[0]), 0.1);
+    const cockPts = segsToPoints(cockSegs());
+    const arm = extrudeZ(shapeOf(cockPts, sinks(cockPts, LV.cock[1], ['cock'])), zOf(LV.cock[1]), zOf(LV.cock[0]), 0.15);
     const dir = angleTo(COCK_FOOT, AX.balance);
     const n = dir + Math.PI / 2;
     const back = add(COCK_FOOT, polar(-1.2, dir));
     const front = add(COCK_FOOT, polar(1.3, dir));
     const foot: P2[] = [add(back, polar(2.0, n)), add(back, polar(-2.0, n)), add(front, polar(-1.9, n)), add(front, polar(1.9, n))];
     const footGeo = extrudeZ(shapeOf(foot), zOf(LV.cock[0]), zOf(0), 0.06);
-    b.mesh(merge([arm, footGeo]), 'bridge', { receive: true });
+    const finish = () => [b.mat('bridge'), b.mat('bridgeSide'), b.mat('bridgeBevel')];
+    b.mesh(facetGroups(arm, BRIDGE_FACES, [0, 0, 1], 0.5), finish(), { receive: true });
+    b.mesh(footGeo, 'bridgeSide');
     // regulator: a ring about the balance jewel with a pointer back along the arm
     const zr = zOf(LV.cock[1]);
     const ptr: P2[] = [add(AX.balance, polar(0.5, n)), add(AX.balance, polar(-0.5, n)), add(AX.balance, polar(-3.6, dir))];
@@ -245,7 +271,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       extrudeZ(shapeOf(circlePts(1.12, 28, AX.balance), [circlePts(0.72, 20, AX.balance).reverse()]), zr - 0.14, zr, 0.03),
       extrudeZ(shapeOf(ptr), zr - 0.14, zr, 0.03),
     ]);
-    b.mesh(reg, 'steelBrushed');
+    b.mesh(reg, 'steelPolished');
     b.proxy(extrudeZ(shapeOf(segsToPoints(cockSegs(), 20 * DEG)), zOf(LV.cock[1]), zOf(0)));
   }
 
@@ -254,10 +280,17 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'bridges', [0, 0, -26], [11.2, 8.4, zOf(LV.bridge[1])]);
     const z0 = zOf(LV.bridge[1]);
     const z1 = zOf(LV.bridge[0]);
-    const barrelB = extrudeZ(shapeOf(segsToPoints(barrelBridgeSegs())), z0, z1, 0.11);
-    const trainB = extrudeZ(shapeOf(segsToPoints(trainBridgeSegs())), z0, z1, 0.11);
-    b.mesh(barrelB, 'bridge', { receive: true });
-    b.mesh(trainB, 'bridge', { receive: true });
+    const finish = () => [b.mat('bridge'), b.mat('bridgeSide'), b.mat('bridgeBevel')];
+    for (const pts of [segsToPoints(barrelBridgeSegs()), segsToPoints(trainBridgeSegs())]) {
+      const solid = extrudeZ(shapeOf(pts, sinks(pts, LV.bridge[1], ['barrel', 'train'])), z0, z1, 0.17);
+      b.mesh(facetGroups(solid, BRIDGE_FACES, [0, 0, 1], 0.5), finish(), { receive: true });
+    }
+    // engraving, laid a hair above the stripes and read through the caseback
+    const engr = engravingTexture(ctx.textureSize, 19);
+    ctx.disposables.push(engr);
+    const plane = new THREE.PlaneGeometry(DIAL_SPAN, DIAL_SPAN).rotateY(Math.PI).translate(0, 0, z0 - 0.012);
+    const lacquer = new THREE.MeshStandardMaterial({ map: engr, transparent: true, alphaTest: 0.02, metalness: 0.35, roughness: 0.3, depthWrite: false });
+    b.mesh(plane, ctx.mats.custom(lacquer, b.part.ink), { edges: false, cast: false });
     const dirP = angleTo(AX.pallet, PALLET_BRIDGE_END);
     const np = dirP + Math.PI / 2;
     const cap: P2[] = [
@@ -269,7 +302,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       extrudeZ(shapeOf(cap), zOf(LV.palletBridge[1]), zOf(LV.palletBridge[0]), 0.05),
       cyl(0.6, zOf(LV.palletBridge[0]), zOf(0), 14, PALLET_BRIDGE_END),
     ]);
-    b.mesh(palletB, 'bridge');
+    b.mesh(palletB, 'bridgeSide');
     b.proxy(extrudeZ(shapeOf(segsToPoints(barrelBridgeSegs(), 18 * DEG)), z0, z1));
     b.proxy(extrudeZ(shapeOf(segsToPoints(trainBridgeSegs(), 18 * DEG)), z0, z1));
   }
@@ -279,9 +312,13 @@ export function buildMovement(ctx: Ctx): MovementRefs {
     const b = part(ctx, 'keyless', [0, 0, -30.5], [AX.barrel[0] + 3.9, AX.barrel[1] + 3.2, zOf(LV.keyless[1])]);
     const z0 = zOf(LV.keyless[1]);
     const z1 = zOf(LV.keyless[0]);
-    const ratchet = extrudeZ(shapeOf(gearOutline(GEAR.ratchet, { add: 0.8, ded: 0.9 })), z0, z1, 0.04).translate(AX.barrel[0], AX.barrel[1], 0);
-    const crownW = extrudeZ(shapeOf(gearOutline(GEAR.crownWheel, { add: 0.8, ded: 0.9 })), z0, z1, 0.04).translate(AX.crownWheel[0], AX.crownWheel[1], 0);
-    b.mesh(merge([ratchet, crownW]), 'steelBrushed');
+    // both wheels carry a sunray: the light wheels round them as the watch turns
+    const ratchet = extrudeZ(shapeOf(gearOutline(GEAR.ratchet, { add: 0.8, ded: 0.9 })), z0, z1, 0.06).translate(AX.barrel[0], AX.barrel[1], 0);
+    const crownW = extrudeZ(shapeOf(gearOutline(GEAR.crownWheel, { add: 0.8, ded: 0.9 })), z0, z1, 0.06).translate(AX.crownWheel[0], AX.crownWheel[1], 0);
+    b.mesh(merge([ratchet, crownW]), 'steelPolished');
+    const face = (g: Gear, at: P2, inner: number) =>
+      lathe([{ pts: [[inner, z0 - 0.006], [pitchR(g) - g.m * 1.15, z0 - 0.006]] }], 96).translate(at[0], at[1], 0);
+    b.mesh(merge([face(GEAR.ratchet, AX.barrel, 2.6), face(GEAR.crownWheel, AX.crownWheel, 1.7)]), 'steelSunray', { edges: false, cast: false });
     const cores = merge([
       cyl(2.6, z0 - 0.08, z0, 32, AX.barrel),
       cyl(1.7, z0 - 0.08, z0, 28, AX.crownWheel),
@@ -340,8 +377,10 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       const level =
         s.on === 'cock' ? LV.cock[1] : s.on === 'pallet' ? LV.palletBridge[1] : s.on === 'ratchet' || s.on === 'crown' ? LV.keyless[1] + 0.08 : LV.bridge[1];
       const r = s.on === 'ratchet' ? 1.05 : s.on === 'crown' ? 0.85 : s.on === 'pallet' ? 0.48 : 0.7;
-      const zt = zOf(level + 0.26);
-      const zh = zOf(level);
+      // bridge screws sit down in their sinks, a hair proud of the surface; the rest stand on what they hold
+      const sunkIn = s.on === 'barrel' || s.on === 'train' || s.on === 'cock';
+      const zt = zOf(level + (sunkIn ? 0.1 : 0.26));
+      const zh = zOf(level - (sunkIn ? 0.36 : 0));
       heads.push(
         lathe([{ pts: [[0.0001, zt], [r * 0.86, zt]] }, { pts: [[r * 0.86, zt], [r, zt + 0.08]] }, { pts: [[r, zt + 0.08], [r, zh]] }], 24).translate(s.at[0], s.at[1], 0),
       );
@@ -352,7 +391,7 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       shanks.push(cyl(r * 0.42, zh, zh + 1.5, 10, s.at));
       b.proxy(cyl(r + 0.5, zt - 0.3, zh + 1.5, 10, s.at));
     });
-    b.mesh(merge(heads), 'blued', { edges: 50 });
+    b.mesh(merge(heads), 'bluedScrew', { edges: 50 });
     b.mesh(merge(slots), 'dark', { edges: false, cast: false });
     b.mesh(merge(shanks), 'steelFrosted', { edges: false });
   }

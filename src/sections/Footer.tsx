@@ -48,7 +48,7 @@ export default function Footer() {
               Valdarno is a fictional concept brand. The house, its people, its history, its prices and its watches were invented for this design study, and any resemblance to a real watchmaker is unintended. Nothing here is for sale.
             </p>
             <p className="footer-text">
-              The watches and plates are drawn in code from one parametric model. The photography and film are generated imagery, not photographs of a real workshop or of real people.
+              The watches and plates are drawn in code from one parametric model. The photography and film are generated imagery: the watch photographs are made from renders of that model, and nothing here shows a real workshop, a real watch or real people.
             </p>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { P2 } from '../lib/calibre';
 import { TAU } from '../lib/calibre';
 
@@ -320,4 +320,185 @@ export function merge(list: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const out = mergeGeometries(clean, false);
   clean.forEach((c) => c.dispose());
   return out!;
+}
+
+/* ------------------------------------------------------------------ finishing */
+
+type V3 = [number, number, number];
+
+/**
+ * Sort the triangles of a solid into material groups by how each face sits against an axis:
+ * the flat face looking along +axis, the flat face looking along -axis, the walls, and the bevels
+ * between them. This is what lets a bridge carry stripes on top, a satin flank and a polished anglage.
+ * `smooth` (radians) rounds the shading along curved walls and bevels while keeping every arris sharp.
+ */
+export function facetGroups(
+  geo: THREE.BufferGeometry,
+  map: { plus: number; minus: number; wall: number; bevel: number },
+  axis: V3 = [0, 0, 1],
+  smooth = 0,
+): THREE.BufferGeometry {
+  let src = geo.index ? geo.toNonIndexed() : geo;
+  if (smooth > 0) src = toCreasedNormals(src, smooth);
+  const p = src.attributes.position;
+  const n = src.attributes.normal;
+  const uv = src.attributes.uv;
+  const buckets: number[][] = [[], [], [], []];
+  const a = new THREE.Vector3();
+  const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
+  const ax = new THREE.Vector3(...axis);
+  for (let t = 0; t < p.count; t += 3) {
+    a.fromBufferAttribute(p, t);
+    b.fromBufferAttribute(p, t + 1);
+    c.fromBufferAttribute(p, t + 2);
+    const fn = b.sub(a).cross(c.sub(a)).normalize();
+    const d = fn.dot(ax);
+    const k = d > 0.93 ? 0 : d < -0.93 ? 1 : Math.abs(d) < 0.1 ? 2 : 3;
+    buckets[k].push(t);
+  }
+  const count = p.count;
+  const pos = new Float32Array(count * 3);
+  const nor = new Float32Array(count * 3);
+  const uvs = new Float32Array(count * 2);
+  const out = new THREE.BufferGeometry();
+  const mats = [map.plus, map.minus, map.wall, map.bevel];
+  let w = 0;
+  buckets.forEach((list, k) => {
+    const start = w;
+    for (const t of list) {
+      for (let i = 0; i < 3; i++) {
+        pos.set([p.getX(t + i), p.getY(t + i), p.getZ(t + i)], w * 3);
+        nor.set([n.getX(t + i), n.getY(t + i), n.getZ(t + i)], w * 3);
+        if (uv) uvs.set([uv.getX(t + i), uv.getY(t + i)], w * 2);
+        w++;
+      }
+    }
+    if (w > start) out.addGroup(start, w - start, mats[k]);
+  });
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  return out;
+}
+
+/** Planar texture coordinates from two of the model axes, in millimetres over `scale`. */
+export function axisUV(g: THREE.BufferGeometry, u: 0 | 1 | 2, v: 0 | 1 | 2, scale: number, offset: [number, number] = [0, 0]): THREE.BufferGeometry {
+  const p = g.attributes.position;
+  const uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) {
+    uv[i * 2] = p.getComponent(i, u) / scale + offset[0];
+    uv[i * 2 + 1] = p.getComponent(i, v) / scale + offset[1];
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
+}
+
+/** A strip of quads between two rails, shaded smoothly along its length and facing `expect`. */
+function strip(a: V3[], b: V3[], expect: V3): THREE.BufferGeometry {
+  const n = a.length;
+  const pos: number[] = [];
+  const idx: number[] = [];
+  for (let i = 0; i < n; i++) pos.push(...a[i], ...b[i]);
+  for (let i = 0; i < n - 1; i++) {
+    const k = i * 2;
+    idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setIndex(idx);
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  const nn = g.attributes.normal;
+  let d = 0;
+  for (let i = 0; i < nn.count; i++) d += nn.getX(i) * expect[0] + nn.getY(i) * expect[1] + nn.getZ(i) * expect[2];
+  if (d < 0) {
+    for (let i = 0; i < idx.length; i += 3) [idx[i + 1], idx[i + 2]] = [idx[i + 2], idx[i + 1]];
+    g.setIndex(idx);
+    g.computeVertexNormals();
+  }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array((pos.length / 3) * 2).fill(0), 2));
+  return g;
+}
+
+/**
+ * A hand as a watchmaker files it: two polished flanks meeting at a ridge down the middle, so one
+ * half takes the light while the other stays dark. `right` is the right-hand edge as [half-width, y].
+ */
+export function ridgeBlade(right: P2[], z: number, edge: number, ridge: number): THREE.BufferGeometry {
+  const wMax = Math.max(...right.map((p) => p[0]));
+  const R: V3[] = [];
+  const L: V3[] = [];
+  const C: V3[] = [];
+  const Rb: V3[] = [];
+  const Lb: V3[] = [];
+  for (const [hw, y] of right) {
+    const h = edge + (ridge - edge) * Math.sqrt(Math.min(1, hw / wMax));
+    R.push([hw, y, z + edge]);
+    L.push([-hw, y, z + edge]);
+    C.push([0, y, z + Math.max(h, edge + 0.004)]);
+    Rb.push([hw, y, z]);
+    Lb.push([-hw, y, z]);
+  }
+  return merge([strip(C, R, [0.4, 0, 1]), strip(C, L, [-0.4, 0, 1]), strip(R, Rb, [1, 0, 0]), strip(L, Lb, [-1, 0, 0]), strip(Lb, Rb, [0, 0, -1])]);
+}
+
+/** An applied index: a bar with a roof, hipped at both ends, lying along +x from x0 to x1 on the plane z. */
+export function gableBar(x0: number, x1: number, width: number, z: number, eave: number, ridge: number): THREE.BufferGeometry {
+  const w = width / 2;
+  const hip = Math.min(w, (x1 - x0) * 0.25);
+  const v: V3[] = [
+    [x0, -w, z], [x1, -w, z], [x1, w, z], [x0, w, z],
+    [x0, -w, z + eave], [x1, -w, z + eave], [x1, w, z + eave], [x0, w, z + eave],
+    [x0 + hip, 0, z + ridge], [x1 - hip, 0, z + ridge],
+  ];
+  const faces: number[][] = [
+    [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7],
+    [4, 5, 9, 8], [6, 7, 8, 9], [5, 6, 9], [7, 4, 8], [3, 2, 1, 0],
+  ];
+  const pos: number[] = [];
+  for (const f of faces) {
+    for (let i = 1; i < f.length - 1; i++) pos.push(...v[f[0]], ...v[f[i]], ...v[f[i + 1]]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array((pos.length / 3) * 2).fill(0), 2));
+  return g;
+}
+
+export function pointInPoly(pt: P2, poly: P2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > pt[1] !== yj > pt[1] && pt[0] < ((xj - xi) * (pt[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** True when a whole disc lies inside an outline, with room to spare. */
+export function discInPoly(c: P2, r: number, poly: P2[]): boolean {
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    if (!pointInPoly([c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)], poly)) return false;
+  }
+  return true;
+}
+
+/** Texture coordinates about the Z axis: u runs round, v along the radius. For graining turned on a lathe. */
+export function polarUV(geo: THREE.BufferGeometry, radial = 10): THREE.BufferGeometry {
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const p = g.attributes.position;
+  const uv = new Float32Array(p.count * 2);
+  for (let t = 0; t < p.count; t += 3) {
+    const us = [0, 1, 2].map((i) => Math.atan2(p.getY(t + i), p.getX(t + i)) / TAU + 0.5);
+    const hi = Math.max(...us);
+    for (let i = 0; i < 3; i++) {
+      // keep a triangle that straddles the seam on one side of it
+      uv[(t + i) * 2] = hi - us[i] > 0.5 ? us[i] + 1 : us[i];
+      uv[(t + i) * 2 + 1] = Math.hypot(p.getX(t + i), p.getY(t + i)) / radial;
+    }
+  }
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return g;
 }

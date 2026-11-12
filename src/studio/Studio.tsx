@@ -33,43 +33,53 @@ const Z = new THREE.Vector3(0, 0, 1);
 const clock = { t: 0 };
 
 
-function Still({ id, view }: { id: WatchId; view: string }) {
+function Still({ id, view, hide, dark, zoom }: { id: WatchId; view: string; hide: string[]; dark: boolean; zoom: number }) {
   const spec = watchById(id);
-  const { size } = useThree();
+  const { size, scene } = useThree();
   const [model, setModel] = useState<WatchModel | null>(null);
   const group = useRef<THREE.Group>(null);
   const focus = useRef<FocusRef>({ distance: CAMERA_Z - 40, strength: 0 });
-  const shadow = useRef(0.34);
+  const shadow = useRef(Number(new URLSearchParams(window.location.search).get('shadow') ?? 0.3));
 
   useEffect(() => {
     let m: WatchModel | null = null;
     fontsReady().then(() => {
       m = buildWatch(spec, { movement: id === 'codice', detail: 1, textureSize: 2048 });
+      for (const p of m.parts) p.group.visible = !hide.includes(p.id);
       setModel(m);
     });
     return () => m?.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, spec]);
+
+  const back = view === 'back';
+  const HW = 2 * CAMERA_Z * Math.tan((CAMERA_FOV * Math.PI) / 360);
+  const at: [number, number, number] = [-HW * 0.02, HW * 0.06, 52];
 
   useFrame(() => {
     if (!model || !group.current) return;
     model.tick(TEN_EIGHT);
     model.pose(() => 0, () => 0);
     model.ink(() => 0, 1, size.width, size.height);
-    model.glass(0.3);
+    model.glass(0.62);
+    if (scene.environment) model.matte(scene.environment, 0.45);
     const g = group.current;
     const Hw = 2 * CAMERA_Z * Math.tan((CAMERA_FOV * Math.PI) / 360);
     const s = spec.diameter / 39;
-    const back = view === 'back';
     const q = new THREE.Quaternion();
     if (back) {
-      q.setFromAxisAngle(Y, Math.PI + 0.34).multiply(new THREE.Quaternion().setFromAxisAngle(X, 0.42));
+      q.setFromAxisAngle(Y, Math.PI - 0.16).multiply(new THREE.Quaternion().setFromAxisAngle(X, 0.2));
+    } else if (view === 'macro') {
+      q.setFromAxisAngle(Y, -0.5).multiply(new THREE.Quaternion().setFromAxisAngle(X, -0.72)).multiply(new THREE.Quaternion().setFromAxisAngle(Z, 0.5));
+    } else if (view === 'flat') {
+      q.identity();
     } else {
       q.setFromAxisAngle(Y, -0.36).multiply(new THREE.Quaternion().setFromAxisAngle(X, -0.5)).multiply(new THREE.Quaternion().setFromAxisAngle(Z, 0.05));
     }
     g.quaternion.copy(q);
     const z = 52;
     const persp = CAMERA_Z / (CAMERA_Z - z);
-    const fit = (Hw * 0.5) / (39 * persp);
+    const fit = ((Hw * 0.5) / (39 * persp)) * zoom;
     g.scale.set(fit * s, fit * s, fit * (spec.thickness / 10.5));
     g.position.set(-Hw * 0.02, Hw * 0.06, z);
     focus.current.distance = CAMERA_Z - z - 6;
@@ -80,8 +90,8 @@ function Still({ id, view }: { id: WatchId; view: string }) {
   return (
     <>
       <Pipeline tier={TIER} focus={focus} />
-      <StudioEnv resolution={1024} />
-      <KeyLight tier={TIER} />
+      <StudioEnv resolution={1024} dark={dark} />
+      <KeyLight tier={TIER} extent={44 * zoom} at={at} dir={back ? [0.5, 0.5, 0.7] : [0.56, 0.42, 0.72]} intensity={2.4} />
       <ShadowCatcher opacity={shadow} />
       <group ref={group}>{model && <primitive object={model.root} />}</group>
     </>
@@ -134,7 +144,11 @@ export default function Studio() {
         gl={{ alpha: true, antialias: false, preserveDrawingBuffer: true, stencil: false }}
         camera={{ fov: CAMERA_FOV, position: [0, 0, CAMERA_Z], near: 70, far: 700 }}
       >
-        {mode === 'hero' ? <HeroScene tier={TIER} frozen={frozen} /> : <Still id={id} view={view} />}
+        {mode === 'hero' ? (
+          <HeroScene tier={TIER} frozen={frozen} />
+        ) : (
+          <Still id={id} view={view} hide={(params.get('hide') ?? '').split(',')} dark={params.get('dark') === '1'} zoom={Number(params.get('zoom') ?? 1)} />
+        )}
       </Canvas>
     </div>
   );

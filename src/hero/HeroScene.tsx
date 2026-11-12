@@ -7,7 +7,7 @@ import type { Part, PartId } from './parts';
 import { KeyLight, Pipeline, ShadowCatcher, StudioEnv, type FocusRef, type Tier } from './Stage';
 import { hero, setActive, setAuto, setReady, shownPart } from './store';
 import { fontsReady } from './textures';
-import { CAMERA_FOV, CAMERA_Z, SCROLL, computeLayout } from './layout';
+import { CAMERA_FOV, CAMERA_Z, CLOSE, SCROLL, computeLayout } from './layout';
 
 export { CAMERA_FOV, CAMERA_Z };
 
@@ -38,7 +38,9 @@ export interface HeroSceneProps {
 }
 
 export default function HeroScene({ tier, frozen }: HeroSceneProps) {
-  const { size, camera, gl } = useThree();
+  const { size, camera, gl, scene } = useThree();
+  const keyLight = useRef<THREE.DirectionalLight | null>(null);
+  const lightState = useRef({ extent: 0 });
   const [model, setModel] = useState<WatchModel | null>(null);
   const poseGroup = useRef<THREE.Group>(null);
   const offsetGroup = useRef<THREE.Group>(null);
@@ -62,9 +64,6 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
   /* ---------- layout: how the stack sits in the viewport ---------- */
   const layout = useMemo(() => {
     const L = computeLayout(size.width, size.height);
-    const qExploded = new THREE.Quaternion()
-      .setFromAxisAngle(Z, L.psi - Math.PI / 2)
-      .multiply(new THREE.Quaternion().setFromAxisAngle(X, -L.theta));
     const qAssembled = new THREE.Quaternion()
       .setFromAxisAngle(Y, -0.3)
       .multiply(new THREE.Quaternion().setFromAxisAngle(X, -0.36));
@@ -73,7 +72,6 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
       centre: new THREE.Vector3(...L.centre),
       centreAssembled: new THREE.Vector3(...L.centreAssembled),
       flat: new THREE.Vector3(...L.flat),
-      qExploded,
       qAssembled,
     };
   }, [size.width, size.height]);
@@ -176,8 +174,12 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     hero.intro = p;
     const lift = smooth(0.04, 0.62, p);
     const introExplode = smooth(0.22, 1, p);
-    const sPose = smooth(SCROLL.close0 + 0.01, SCROLL.close1, s);
-    const rest = lift * (1 - sPose);
+    // the closing has two beats: the parts come home, then the watch is turned over to its dial
+    const span = SCROLL.close1 - SCROLL.close0;
+    const homeEnd = SCROLL.close0 + span * CLOSE.home;
+    const sPose = smooth(SCROLL.close0 + span * CLOSE.turn, SCROLL.close1, s);
+    const sHome = smooth(SCROLL.close0, homeEnd, s);
+    const rest = lift * (1 - sHome);
 
     /* time: the watch always runs */
     model.tick(wall);
@@ -201,12 +203,16 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     const t = now / 1000;
     model.pose(
       (part: Part) => {
-        const lag = Math.abs(part.order - 0.45) * 0.1;
-        const close = smooth(SCROLL.close0 + lag, SCROLL.close1 - 0.06 + lag, s);
+        const lag = Math.abs(part.order - 0.45) * 0.07;
+        // the strap is fastened last, as the watch is turned over: until then the movement shows through the back
+        const late = part.id === 'strap' || part.id === 'buckle';
+        const close = late
+          ? smooth(SCROLL.close0 + span * 0.5, SCROLL.close1 - 0.03, s)
+          : smooth(SCROLL.close0 + lag, homeEnd - 0.035 + lag, s);
         const bob = 1 + 0.008 * Math.sin(t * 0.55 + part.order * 21) * rest;
         return introExplode * (1 - close) * k * bob;
       },
-      (part: Part) => 0.07 * Math.sin(t * 0.33 + part.order * 17.3) * introExplode * (1 - sPose),
+      (part: Part) => 0.07 * Math.sin(t * 0.33 + part.order * 17.3) * introExplode * (1 - sHome),
     );
 
     /* ink resolves into metal as each part leaves the page */
@@ -227,9 +233,17 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     );
 
     /* pose: flat on the page, floating exploded, assembled */
-    if (!frozen) c.spin += dt * 0.085 * rest;
-    const spin = wrapPi(c.spin) * (1 - smooth(SCROLL.close0, SCROLL.close1 - 0.04, s));
-    q.a.copy(layout.qExploded).multiply(q.tmp.setFromAxisAngle(Z, spin));
+    // At rest the stack turns slowly. On the way down it holds still, and from the escapement on it is
+    // turned over in the hand, so that the striped bridges, the jewels and the blued screws face the reader.
+    if (!frozen) c.spin += dt * 0.085 * rest * (1 - smooth(SCROLL.travel0, SCROLL.travel0 + 0.05, s));
+    const swing = smooth(-7, -16.5, c.focus) * introExplode;
+    const settle = smooth(SCROLL.travel0, SCROLL.travel0 + 0.07, s);
+    const spin = mix(wrapPi(c.spin), mix(0.42, Math.PI - 0.34, swing), settle);
+    const theta = mix(layout.theta, layout.thetaBack, swing);
+    q.a
+      .setFromAxisAngle(Z, layout.psi - Math.PI / 2)
+      .multiply(q.tmp.setFromAxisAngle(X, -theta))
+      .multiply(q.tmp.setFromAxisAngle(Z, spin));
     q.b.copy(q.flat).slerp(q.a, smooth(0.06, 0.6, p));
     q.b.slerp(layout.qAssembled, sPose);
 
@@ -254,11 +268,32 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     poseGroup.current.scale.set(sc, sc, sc * flatten);
 
     /* turn about the part in view, not about the dial */
-    const openness = introExplode * (1 - smooth(SCROLL.close0, SCROLL.close1 - 0.04, s));
+    const openness = introExplode * (1 - sHome);
     offsetGroup.current.position.z = mix(1.5, -c.focus * k, openness);
-    model.glass(mix(0.1, 0.3, smooth(0.3, 1, openness)));
+    model.glass(mix(0.22, 0.42, smooth(0.3, 1, openness)));
+    if (scene.environment) model.matte(scene.environment, 0.8);
 
-    shadowOpacity.current = 0.24 * smooth(0.1, 0.7, p);
+    /* the key: wide while the stack is open, drawn tight round the finished watch so the hands shadow the dial */
+    const L = keyLight.current;
+    if (L) {
+      const extent = mix(170, 46, sPose);
+      if (Math.abs(extent - lightState.current.extent) > 0.02) {
+        lightState.current.extent = extent;
+        const tx = layout.centreAssembled.x * sPose;
+        const ty = layout.centreAssembled.y * sPose;
+        L.target.position.set(tx, ty, 46 * sPose);
+        L.target.updateMatrixWorld();
+        L.position.set(tx + mix(-52, 176, sPose), ty + mix(78, 148, sPose), mix(340, 310, sPose));
+        const cam = L.shadow.camera;
+        cam.left = -extent;
+        cam.right = extent;
+        cam.top = extent * 0.77;
+        cam.bottom = -extent * 0.77;
+        cam.updateProjectionMatrix();
+      }
+    }
+
+    shadowOpacity.current = mix(0.24, 0.17, sPose) * smooth(0.1, 0.7, p);
     focus.current.distance = CAMERA_Z - q.v.z;
     focus.current.strength = tier.level === 'high' ? mix(0, mix(19, 7, sPose), smooth(0.3, 0.9, p)) : 0;
 
@@ -326,7 +361,7 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     <>
       <Pipeline tier={tier} focus={focus} />
       <StudioEnv resolution={tier.level === 'high' ? 512 : 256} />
-      <KeyLight tier={tier} />
+      <KeyLight tier={tier} intensity={2.0} light={keyLight} />
       <ShadowCatcher opacity={shadowOpacity} />
       <group ref={poseGroup}>
         <group ref={offsetGroup}>

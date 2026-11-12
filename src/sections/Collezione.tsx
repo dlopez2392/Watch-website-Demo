@@ -4,17 +4,17 @@ import { PlateCase } from '../plates/plates';
 import { Pic } from './Media';
 
 const ALT: Record<string, string> = {
-  codice: 'Codice 39: steel dress watch with an ivory sector dial, blued leaf hands, small seconds at six, on a cognac calf strap.',
-  lungarno: 'Lungarno 36: slim yellow-gold watch with an ivory lacquer dial, gold batons and two gold leaf hands, on a sepia strap.',
-  tirreno: 'Tirreno 41: steel dive watch with a midnight-blue dial, luminous markers, sword hands and a sixty-minute rotating bezel.',
-  doppiofuso: 'Doppio Fuso 40: steel travel watch with an iron-gall dial, a red twenty-four hour hand and an engraved twenty-four hour bezel.',
+  codice: 'Photograph of the Codice 39: a steel dress watch with an ivory sector dial, blued leaf hands and applied blued batons, small seconds at six, on a cognac calf strap.',
+  lungarno: 'Photograph of the Lungarno 36: a slim yellow-gold watch with an ivory lacquer dial, applied gold batons and two gold leaf hands, on a sepia strap.',
+  tirreno: 'Photograph of the Tirreno 41: a steel dive watch with a midnight-blue dial, applied luminous markers, sword hands and a sixty-minute rotating bezel.',
+  doppiofuso: 'Photograph of the Doppio Fuso 40: a steel travel watch with an iron-gall dial, a red twenty-four hour hand and an engraved twenty-four hour bezel.',
 };
 
 const PHOTO: Record<string, string> = {
-  codice: 'Close photograph of an ivory dial with a small-seconds register and heat-blued hands.',
-  lungarno: 'A slim gold wristwatch with an ivory dial on a stone windowsill above the Arno at dusk.',
-  tirreno: 'Close photograph of a dark blue dive bezel and luminous markers beaded with sea water.',
-  doppiofuso: 'Close photograph of a brown-black dial with a red arrow-tipped hand beside a steel twenty-four hour bezel.',
+  codice: 'Detail of the Codice dial: the sunk seconds dial with its fine concentric rings and blued hand.',
+  lungarno: 'Detail of the Lungarno dial: gold leaf hands over ivory lacquer, with the applied gold batons.',
+  tirreno: 'Detail of the Tirreno: the knurled bezel, its blue insert and the luminous markers.',
+  doppiofuso: 'Detail of the Doppio Fuso: the red-tipped twenty-four hour hand and the engraved bezel.',
 };
 
 export default function Collezione() {
@@ -46,24 +46,27 @@ export default function Collezione() {
                 <div className="watch-plate" aria-hidden="false">
                   <PlateCase spec={w} />
                 </div>
-                <img
-                  className="watch-still"
-                  data-reveal
-                  src={`/img/${w.id}.webp`}
-                  srcSet={`/img/${w.id}-900.webp 900w, /img/${w.id}.webp 1500w`}
-                  sizes="(max-width: 900px) 92vw, 46vw"
-                  width={1500}
-                  height={1700}
-                  loading="lazy"
-                  decoding="async"
-                  alt={ALT[w.id]}
-                />
+                <figure className="watch-print" data-reveal>
+                  <img
+                    src={`/img/${w.id}.webp`}
+                    srcSet={`/img/${w.id}-900.webp 900w, /img/${w.id}.webp 1500w`}
+                    sizes="(max-width: 900px) 70vw, 30vw"
+                    width={1500}
+                    height={2000}
+                    loading="lazy"
+                    decoding="async"
+                    alt={ALT[w.id]}
+                  />
+                  <figcaption className="hand">
+                    tav. {w.numeral}, dal vero
+                  </figcaption>
+                </figure>
                 <p className="watch-numeral" aria-hidden="true">
                   {w.numeral}
                 </p>
                 <figure className="watch-photo" data-reveal style={{ ['--i' as string]: 2 }}>
-                  <Pic name={`detail-${w.id}`} sizes="(max-width: 900px) 44vw, 17vw" alt={PHOTO[w.id]} />
-                  <figcaption className="hand">dal vero</figcaption>
+                  <Pic name={`detail-${w.id}`} sizes="(max-width: 900px) 40vw, 15vw" alt={PHOTO[w.id]} />
+                  <figcaption className="hand">particolare</figcaption>
                 </figure>
               </div>
               <div className="watch-text">

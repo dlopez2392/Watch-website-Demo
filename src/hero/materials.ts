@@ -37,6 +37,18 @@ export const setDirectOutput = (direct: boolean) => {
   shared.uDirect.value = direct ? 1 : 0;
 };
 
+/**
+ * The tone curve, shared by every path to the screen: identity up to the knee, so ink and paper
+ * arrive exactly as specified, then a long photographic shoulder so that a window reflected in
+ * polished steel keeps its shape instead of burning out.
+ */
+export const KNEE = /* glsl */ `
+vec3 softKnee(vec3 c) {
+  const float k = 0.6;
+  vec3 t = max(c - k, 0.0) / (1.0 - k);
+  return min(c, vec3(k)) + (1.0 - k) * t / (1.0 + t);
+}`;
+
 const INK_PARS = /* glsl */ `
 uniform float uInk;
 uniform vec3 uInkPaper;
@@ -50,6 +62,12 @@ float inkNoise(vec2 p){
   vec2 i = floor(p); vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
   return mix(mix(inkHash(i), inkHash(i + vec2(1.0, 0.0)), f.x), mix(inkHash(i + vec2(0.0, 1.0)), inkHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+// the tone curve run backwards, so a colour chosen for the page survives the trip to the screen
+vec3 inkUnKnee(vec3 y){
+  const float k = 0.6;
+  vec3 u = clamp((y - k) / (1.0 - k), 0.0, 0.98);
+  return min(y, vec3(k)) + (1.0 - k) * u / (1.0 - u);
 }
 float inkHatch(vec2 p, float period, float tone){
   float l = abs(fract(p.x / period) - 0.5) * 2.0;
@@ -79,7 +97,7 @@ if (uInk > 0.001) {
   // the metal arrives in diagonal strokes
   float stroke = inkNoise(vec2(hp.x * 0.01, hp.y * 0.07)) * 0.6 + inkNoise(sp * 0.02) * 0.4;
   float k = smoothstep(0.0, 1.0, uInk * 1.5 - 0.25 + (0.5 - stroke) * 0.5);
-  gl_FragColor.rgb = mix(gl_FragColor.rgb, inkCol, k);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, inkUnKnee(inkCol), k);
 }
 `;
 
@@ -92,23 +110,31 @@ export function applyInk<T extends THREE.Material>(material: T, ink: InkUniform)
       .replace('#include <map_fragment>', `#include <map_fragment>\ninkAlbedo = diffuseColor.rgb;`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>\n${INK_BODY}`);
   };
-  material.customProgramCacheKey = () => 'ink-v1';
+  material.customProgramCacheKey = () => 'ink-v2';
+  // anisotropic and coated metals need a little more of the pipeline, never less of the ink
   return material;
 }
 
 export type MatKey =
   | 'steelPolished'
   | 'steelBrushed'
+  | 'steelCircular'
+  | 'steelSunray'
   | 'steelFrosted'
   | 'steelSatin'
   | 'goldSatin'
   | 'goldPolished'
   | 'goldBrushed'
+  | 'goldCircular'
   | 'brass'
+  | 'brassPolished'
   | 'gilt'
   | 'plate'
   | 'bridge'
+  | 'bridgeSide'
+  | 'bridgeBevel'
   | 'blued'
+  | 'bluedScrew'
   | 'spring'
   | 'ruby'
   | 'chaton'
@@ -131,46 +157,67 @@ export function createMaterials(): MatLib {
   brushedFine.needsUpdate = true;
   const perlage = perlageTexture();
   perlage.repeat.set(1, 1);
-  const snail = brushed.clone();
-  snail.repeat.set(6, 1);
-  snail.needsUpdate = true;
+  // the same scratches wrapped round an axis: circular graining, and laid along the radius: a sunray
+  const circular = brushed.clone();
+  circular.repeat.set(4, 1);
+  circular.needsUpdate = true;
+  const sunray = brushed.clone();
+  sunray.center.set(0.5, 0.5);
+  sunray.rotation = Math.PI / 2;
+  sunray.repeat.set(1, 6);
+  sunray.needsUpdate = true;
   const stripes = stripesTexture();
   stripes.repeat.set(0.7, 0.7);
   stripes.rotation = 0.55;
   const grain = leatherTexture();
-  grain.repeat.set(2, 4);
+  grain.repeat.set(0.55, 1.1);
 
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
+  const phy = (p: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(p);
+  // Brushing is a field of fine grooves: the highlight smears across them. `anisotropy` does that;
+  // the scratch map only breaks the smear up, so the grain is seen and not just implied.
+  // The grooves run along u, so the smear runs along v; a sunray is the same map turned a quarter.
+  const brushedMetal = (color: string, map: THREE.Texture, roughness = 0.34, anisotropy = 0.72, across = Math.PI / 2) =>
+    phy({ color, metalness: 1, roughness, roughnessMap: map, bumpMap: map, bumpScale: 0.3, anisotropy, anisotropyRotation: across });
+  // Faces turned on a lathe keep the scratch map but not the smear: on a flat disc the renderer's
+  // approximation folds the reflection back on the camera and the grain is lost in white.
+  const turnedMetal = (color: string, map: THREE.Texture, roughness: number) =>
+    std({ color, metalness: 1, roughness, roughnessMap: map, bumpMap: map, bumpScale: 0.45 });
   const defs: Record<MatKey, () => THREE.Material> = {
-    steelPolished: () => std({ color: '#e2e3e6', metalness: 1, roughness: 0.06 }),
-    steelBrushed: () =>
-      std({ color: '#cfd0d3', metalness: 1, roughness: 0.36, roughnessMap: brushed, bumpMap: brushed, bumpScale: 0.35 }),
+    steelPolished: () => std({ color: '#e4e5e8', metalness: 1, roughness: 0.045 }),
+    steelBrushed: () => brushedMetal('#cfd0d4', brushed),
+    steelCircular: () => turnedMetal('#d2d3d7', circular, 0.3),
+    steelSunray: () => turnedMetal('#d9dadd', sunray, 0.3),
     steelFrosted: () => std({ color: '#c6c7ca', metalness: 1, roughness: 0.42 }),
     steelSatin: () => std({ color: '#d2d3d6', metalness: 1, roughness: 0.72 }),
     goldSatin: () => std({ color: '#dcb671', metalness: 1, roughness: 0.72 }),
-    goldPolished: () => std({ color: '#e3bd78', metalness: 1, roughness: 0.09 }),
-    goldBrushed: () =>
-      std({ color: '#dcb671', metalness: 1, roughness: 0.34, roughnessMap: brushed, bumpMap: brushed, bumpScale: 0.35 }),
-    brass: () => std({ color: '#d9ad5c', metalness: 1, roughness: 0.2, roughnessMap: brushedFine }),
+    goldPolished: () => std({ color: '#e6c07a', metalness: 1, roughness: 0.06 }),
+    goldBrushed: () => brushedMetal('#dcb671', brushed),
+    goldCircular: () => turnedMetal('#dfba75', circular, 0.3),
+    brass: () => turnedMetal('#dcae62', circular, 0.24),
+    brassPolished: () => std({ color: '#e8bf74', metalness: 1, roughness: 0.07 }),
     gilt: () => std({ color: '#dcb86c', metalness: 1, roughness: 0.16 }),
     plate: () =>
-      std({ color: '#dcdcde', metalness: 1, roughness: 0.4, roughnessMap: perlage, bumpMap: perlage, bumpScale: 0.28 }),
+      std({ color: '#dcbb76', metalness: 1, roughness: 0.4, roughnessMap: perlage, bumpMap: perlage, bumpScale: 0.3 }),
     bridge: () =>
-      std({ color: '#e0e1e3', metalness: 1, roughness: 0.3, roughnessMap: stripes, bumpMap: stripes, bumpScale: 0.16 }),
-    blued: () => std({ color: '#101d58', metalness: 0.9, roughness: 0.22 }),
+      std({ color: '#ecd08c', metalness: 1, roughness: 0.36, roughnessMap: stripes, bumpMap: stripes, bumpScale: 0.24 }),
+    bridgeSide: () => std({ color: '#d6b46c', metalness: 1, roughness: 0.46 }),
+    bridgeBevel: () => std({ color: '#f1d596', metalness: 1, roughness: 0.05 }),
+    blued: () => phy({ color: '#0d1f6b', metalness: 1, roughness: 0.14, clearcoat: 0.22, clearcoatRoughness: 0.06 }),
+    bluedScrew: () => phy({ color: '#14308f', metalness: 1, roughness: 0.12, clearcoat: 0.3, clearcoatRoughness: 0.05 }),
     spring: () => std({ color: '#5b6f9c', metalness: 1, roughness: 0.24 }),
     ruby: () =>
-      new THREE.MeshPhysicalMaterial({
-        color: '#b0102f',
+      phy({
+        color: '#b00f3c',
         metalness: 0,
-        roughness: 0.06,
+        roughness: 0.05,
         clearcoat: 1,
-        clearcoatRoughness: 0.04,
-        emissive: '#3d000c',
-        emissiveIntensity: 0.55,
+        clearcoatRoughness: 0.03,
+        emissive: '#4a0016',
+        emissiveIntensity: 0.6,
         ior: 1.76,
       }),
-    chaton: () => std({ color: '#e0b970', metalness: 1, roughness: 0.14 }),
+    chaton: () => std({ color: '#ecc880', metalness: 1, roughness: 0.1 }),
     dark: () => std({ color: '#191715', metalness: 0.2, roughness: 0.7 }),
   };
 
@@ -233,12 +280,13 @@ export function createMaterials(): MatLib {
       return track(m);
     },
     leather(map, ink) {
-      const m = std({ color: '#ffffff', map, metalness: 0, roughness: 0.74, bumpMap: grain, bumpScale: 0.5, side: THREE.DoubleSide });
+      const m = phy({ color: '#ffffff', map, metalness: 0, roughness: 0.62, bumpMap: grain, bumpScale: 1.6, side: THREE.DoubleSide, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ffd9b0') });
+      m.userData.matte = true;
       return track(applyInk(m, ink));
     },
     dispose() {
       all.forEach((m) => m.dispose());
-      [brushed, brushedFine, perlage, stripes, grain].forEach((t) => t.dispose());
+      [brushed, brushedFine, circular, sunray, perlage, stripes, grain].forEach((t) => t.dispose());
     },
   };
 }

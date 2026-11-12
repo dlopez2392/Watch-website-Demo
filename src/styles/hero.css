@@ -315,6 +315,33 @@
   color: var(--sepia);
 }
 
+/* ---------- between the two: the watch closing, seen from its back ---------- */
+
+.hero-turn {
+  position: absolute;
+  left: var(--gutter);
+  top: 50%;
+  width: min(27rem, 36vw);
+  transform: translate3d(0, -50%, 0);
+  opacity: min(clamp(0, calc((var(--s) - 0.65) * 16), 1), clamp(0, calc((0.785 - var(--s)) * 20), 1));
+  pointer-events: none;
+}
+.hero-turn .hand {
+  font-size: 2.1rem;
+  color: var(--sanguine);
+}
+.hero-turn-line {
+  margin-top: 0.3rem;
+  font-family: var(--serif);
+  font-size: clamp(2.2rem, 3.6vw, 3.6rem);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  color: var(--ink-strong);
+}
+.hero-turn .body {
+  margin-top: 1.3rem;
+}
+
 /* ---------- annotation ---------- */
 
 .annotation {
@@ -598,6 +625,18 @@
   .hero-closed .lede,
   .hero-closed .hero-time-en {
     display: none;
+  }
+  .hero-turn {
+    top: 5.2rem;
+    width: auto;
+    right: var(--gutter);
+    transform: none;
+  }
+  .hero-turn .body {
+    display: none;
+  }
+  .hero-turn-line {
+    font-size: 2.1rem;
   }
   .hero-closed .display {
     font-size: 3.2rem;
