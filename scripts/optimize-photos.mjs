@@ -9,9 +9,9 @@ mkdirSync('public/img/hf', { recursive: true });
 
 // where to look for the detail: centre of the crop and its width, as fractions of the frame
 const DETAIL = {
-  codice: [0.455, 0.5, 0.4],
-  lungarno: [0.5, 0.36, 0.42],
-  tirreno: [0.6, 0.33, 0.44],
+  codice: [0.46, 0.49, 0.4],
+  lungarno: [0.47, 0.4, 0.42],
+  tirreno: [0.55, 0.3, 0.44],
   doppiofuso: [0.36, 0.4, 0.44],
 };
 
@@ -21,6 +21,8 @@ for (const [id, [cx, cy, w]] of Object.entries(DETAIL)) {
   const m = await sharp(file).metadata();
   await sharp(file).resize(1500, 2000, { fit: 'cover' }).webp({ quality: 82, effort: 6 }).toFile(`public/img/${id}.webp`);
   await sharp(file).resize(900, 1200, { fit: 'cover' }).webp({ quality: 78, effort: 6 }).toFile(`public/img/${id}-900.webp`);
+  await sharp(file).resize(300, 400, { fit: 'cover' }).webp({ quality: 74, effort: 6 }).toFile(`public/img/${id}-300.webp`);
+  await sharp(file).resize(600, 800, { fit: 'cover' }).webp({ quality: 76, effort: 6 }).toFile(`public/img/${id}-600.webp`);
   const cw = Math.round(m.width * w);
   const ch = Math.round((cw * 4) / 3);
   const left = Math.max(0, Math.min(m.width - cw, Math.round(m.width * cx - cw / 2)));

@@ -3,8 +3,8 @@ import { DEG, PLATE_T, TAU, gearOutline, type P2 } from '../lib/calibre';
 import type { WatchSpec } from '../lib/watches';
 import { SIDE_PROFILE, axisUV, circlePts, cyl, extrudeZ, facetGroups, gableBar, lathe, merge, ridgeBlade, shapeOf, sweep, type Frame } from './geo';
 import type { MatKey, MatLib } from './materials';
-import { PartBuilder, type Part } from './parts';
-import { bezelTexture, casebackTexture, dialReliefTexture, dialTexture, strapTexture } from './textures';
+import { PartBuilder, type Part, type PartId } from './parts';
+import { aoTexture, bezelTexture, casebackTexture, dialReliefTexture, dialTexture, strapTexture } from './textures';
 
 /** Heights along the watch axis; z = 0 is the dial-side face of the mainplate. */
 export const CASE = {
@@ -37,6 +37,8 @@ export interface Ctx {
   disposables: { dispose(): void }[];
   /** sapphire surfaces, so the scene can tune how strongly they reflect */
   glass: THREE.MeshPhysicalMaterial[];
+  /** contact shading, baked for the assembled watch: it fades as soon as any of `ids` leaves home */
+  ao: { mats: THREE.MeshStandardMaterial[]; ids: PartId[] }[];
 }
 
 const part = (ctx: Ctx, id: Part['id'], explode: [number, number, number], anchor: [number, number, number]) => {
@@ -153,7 +155,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       const map = bezelTexture(diver ? 'dive' : 'gmt', outer, ctx.textureSize / 2);
       ctx.disposables.push(map);
       const m = diver
-        ? new THREE.MeshPhysicalMaterial({ map, metalness: 0, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.08 })
+        ? new THREE.MeshPhysicalMaterial({ map, metalness: 0, roughness: 0.3, clearcoat: 0.65, clearcoatRoughness: 0.14 })
         : new THREE.MeshStandardMaterial({ map, metalness: 1, roughness: 0.36 });
       b.mesh(insert, mats.custom(m, b.part.ink), { edges: false, cast: false });
     }
@@ -269,6 +271,37 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
         ? new THREE.MeshStandardMaterial({ map, metalness: 1, roughness: 1, metalnessMap: relief, roughnessMap: relief, bumpMap: relief, bumpScale: 0.2 })
         : new THREE.MeshStandardMaterial({ map, metalness: 0.04, roughness: 0.62 });
     faceMat.userData.matte = true;
+    // Contact shading: under the flange that rises at the edge of the dial, round the foot of every applied index,
+    // in the corner of the seconds well and under the stack of hands.
+    const rot = (pts: P2[], a: number): P2[] => pts.map(([x, y]) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]);
+    const bar = (x0: number, x1: number, w: number, off: number, a: number) => rot([[x0, off - w / 2], [x1, off - w / 2], [x1, off + w / 2], [x0, off + w / 2]], a);
+    const ao = aoTexture(Math.min(1024, ctx.textureSize / 2), CASE.dialR * 2, (p) => {
+      p.ring([0, 0], CASE.dialR - 1.6, CASE.dialR, 0.6);
+      for (let h = 0; h < 12; h++) {
+        const a = Math.PI / 2 - (h / 12) * TAU;
+        if (diver) {
+          const r = h % 3 === 0 && h ? 0 : 1.2;
+          if (r) p.disc(rot([[12.4, 0]], a)[0], r, 0.5, 0.5);
+          else p.poly(bar(10.7, 14.1, 1.6, 0, a), 0.5, 0.5);
+          continue;
+        }
+        if (spec.applied === 'none') continue;
+        if (spec.applied === 'blued') {
+          if (h % 2 === 1) p.poly(bar(11.85, 14.22, 0.62, 0, a), 0.32, 0.55);
+          continue;
+        }
+        if (spec.applied === 'gold' && h === 0) continue;
+        const half = h % 3 === 0 ? 1.55 : 1.25;
+        const offs = spec.applied === 'steel' && h === 0 ? [0.42, -0.42] : [0];
+        for (const o of offs) p.poly(bar(12.45 - half, 12.65 + half, 0.68, o, a), 0.32, 0.55);
+      }
+      if (sunk) p.ring(SUB_SECONDS, SUB.floor - 0.9, SUB.floor, 0.55);
+      p.disc([0, 0], 1.0, 0.9, 0.4);
+      if (spec.seconds === 'small') p.disc(SUB_SECONDS, 0.45, 0.45, 0.35);
+    });
+    ctx.disposables.push(ao);
+    faceMat.aoMap = ao;
+    ctx.ao.push({ mats: [faceMat], ids: ['dial', 'caseMiddle', 'bezel', 'hands'] });
     const dialMat = mats.custom(faceMat, b.part.ink);
     const holes = sunk ? [circlePts(SUB.lip, 72, SUB_SECONDS).reverse()] : [];
     const face = dialUV(new THREE.ShapeGeometry(shapeOf(circlePts(CASE.dialR, segs), holes)).translate(0, 0, zt));
@@ -505,11 +538,12 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       if (toTip < 1) f.width *= 0.35 + 0.65 * Math.sqrt(Math.max(0, toTip));
       framesLong.push(f);
     }
-    const map = strapTexture(spec.strap.color, spec.strap.stitch);
+    const cloth = /sailcloth/i.test(spec.strap.label);
+    const map = strapTexture(spec.strap.color, spec.strap.stitch, cloth);
     ctx.disposables.push(map);
 
     const b = part(ctx, 'strap', [0, 0, -36], [0, -27.4, -15]);
-    const leather = mats.leather(map, b.part.ink);
+    const leather = mats.leather(map, b.part.ink, cloth);
     const gShort = b.group();
     const gLong = b.group();
     b.mesh(sweep(framesShort), leather, { parent: gShort, edges: 55 });

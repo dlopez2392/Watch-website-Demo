@@ -81,7 +81,9 @@ function Still({ id, view, hide, dark, zoom }: { id: WatchId; view: string; hide
     const persp = CAMERA_Z / (CAMERA_Z - z);
     const fit = ((Hw * 0.5) / (39 * persp)) * zoom;
     g.scale.set(fit * s, fit * s, fit * (spec.thickness / 10.5));
-    g.position.set(-Hw * 0.02, Hw * 0.06, z);
+    // ?pan=x,y moves the watch in its own millimetres, to bring a detail under a close lens
+    const [px, py] = (new URLSearchParams(window.location.search).get('pan') ?? '0,0').split(',').map(Number);
+    g.position.set(-Hw * 0.02 - px * fit * s, Hw * 0.06 - py * fit * s, z);
     focus.current.distance = CAMERA_Z - z - 6;
     focus.current.strength = 9;
     if (window.__studio) window.__studio.ready = true;

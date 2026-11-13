@@ -12,9 +12,8 @@ export default function Footer() {
   return (
     <footer className="footer" data-tone="dark">
       <div className="wrap">
-        <p className="footer-mark" aria-hidden="true">
-          Valdarno
-        </p>
+        {/* the name as a watermark: drawn by the stylesheet, so it is decoration and not text */}
+        <p className="footer-mark" aria-hidden="true" data-mark="Valdarno" />
         <div className="footer-grid">
           <div>
             <p className="label">Manifattura Orologiera</p>

@@ -160,8 +160,52 @@ export function leatherTexture(): THREE.CanvasTexture {
   return asTexture(c, false);
 }
 
-/** Strap face: dyed calf, darker where the edges were burnished, saddle-stitched down both sides. */
-export function strapTexture(color: string, stitch: string): THREE.CanvasTexture {
+/**
+ * Sailcloth: a plain weave, sixteen threads to the tile, each over one and under the next.
+ * Read as a bump and roughness map; the threads rise in the middle and dip where they cross under.
+ */
+export function weaveTexture(): THREE.CanvasTexture {
+  const S = 512;
+  const N = 16;
+  const p = S / N;
+  const [c, g] = canvas(S, S);
+  const r = rng(41);
+  g.fillStyle = 'rgb(60,60,60)';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const warpOver = (i + j) % 2 === 0;
+      const x = i * p;
+      const y = j * p;
+      const jitter = (r() - 0.5) * 18;
+      // the thread on top, rounded across its width
+      const grad = warpOver ? g.createLinearGradient(x, 0, x + p, 0) : g.createLinearGradient(0, y, 0, y + p);
+      const hi = 205 + jitter;
+      grad.addColorStop(0, 'rgb(70,70,70)');
+      grad.addColorStop(0.5, `rgb(${hi},${hi},${hi})`);
+      grad.addColorStop(1, 'rgb(70,70,70)');
+      g.fillStyle = grad;
+      if (warpOver) g.fillRect(x + p * 0.06, y, p * 0.88, p);
+      else g.fillRect(x, y + p * 0.06, p, p * 0.88);
+    }
+  }
+  // stray fibres
+  for (let i = 0; i < 1400; i++) {
+    g.strokeStyle = `rgba(230,230,230,${0.05 + r() * 0.1})`;
+    g.lineWidth = 0.6;
+    const x = r() * S;
+    const y = r() * S;
+    const a = r() > 0.5 ? 0 : Math.PI / 2;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * (4 + r() * 10), y + Math.sin(a) * (4 + r() * 10));
+    g.stroke();
+  }
+  return asTexture(c, false);
+}
+
+/** Strap face: dyed calf, darker where the edges were burnished, saddle-stitched down both sides; or woven cloth with folded edges. */
+export function strapTexture(color: string, stitch: string, cloth = false): THREE.CanvasTexture {
   const W = 256;
   const H = 512;
   const [c, g] = canvas(W, H);
@@ -175,13 +219,13 @@ export function strapTexture(color: string, stitch: string): THREE.CanvasTexture
     const rad = 30 + r() * 80;
     const grad = g.createRadialGradient(x, y, 0, x, y, rad);
     const light = r() > 0.5;
-    grad.addColorStop(0, light ? 'rgba(255,225,190,0.07)' : 'rgba(30,14,4,0.08)');
+    grad.addColorStop(0, light ? (cloth ? 'rgba(200,215,255,0.05)' : 'rgba(255,225,190,0.07)') : cloth ? 'rgba(0,0,8,0.08)' : 'rgba(30,14,4,0.08)');
     grad.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = grad;
     g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
   for (let i = 0; i < 5200; i++) {
-    g.fillStyle = `rgba(${r() > 0.5 ? '255,235,210' : '20,8,0'},${0.03 + r() * 0.07})`;
+    g.fillStyle = `rgba(${r() > 0.5 ? (cloth ? '210,220,245' : '255,235,210') : cloth ? '0,0,6' : '20,8,0'},${0.03 + r() * 0.07})`;
     g.fillRect(r() * W, r() * H, 1 + r() * 2, 1 + r() * 2);
   }
   // burnished edges
@@ -190,9 +234,11 @@ export function strapTexture(color: string, stitch: string): THREE.CanvasTexture
     [W, W - 34],
   ]) {
     const grad = g.createLinearGradient(x0, 0, x1, 0);
-    grad.addColorStop(0, 'rgba(24,10,2,0.62)');
-    grad.addColorStop(0.3, 'rgba(24,10,2,0.22)');
-    grad.addColorStop(1, 'rgba(24,10,2,0)');
+    // calf is burnished dark at the edge; cloth is folded under, and only a little darker
+    const e = cloth ? '0,0,6' : '24,10,2';
+    grad.addColorStop(0, `rgba(${e},${cloth ? 0.35 : 0.62})`);
+    grad.addColorStop(0.3, `rgba(${e},${cloth ? 0.08 : 0.22})`);
+    grad.addColorStop(1, `rgba(${e},0)`);
     g.fillStyle = grad;
     g.fillRect(Math.min(x0, x1), 0, 34, H);
   }
@@ -616,7 +662,7 @@ export function bezelTexture(kind: 'dive' | 'gmt', R: number, size = 1024): THRE
   g.scale(k, -k);
   const mid = R - 1.45;
   if (kind === 'dive') {
-    g.fillStyle = '#131c38';
+    g.fillStyle = '#16275f';
     g.fillRect(-R, -R, R * 2, R * 2);
     const ink = '#e6dfcc';
     ticks(g, 60, mid + 0.45, mid + 1.05, 0.14, ink, (i) => i > 15 || i === 0);
@@ -699,5 +745,70 @@ export function engravingTexture(size = 1024, jewels = 19): THREE.CanvasTexture 
   arcLabel(g, `CAL. V.31  ·  ${jewels} RUBINI  ·  N° 001`, 10.75, at + 0.05, 0.6, `500 SIZE ${SANS}`, ink, 0.3);
   const t = asTexture(c, true, false);
   t.premultiplyAlpha = false;
+  return t;
+}
+
+/* ---------------- contact shading ---------------- */
+
+type Pt = [number, number];
+
+/** Paints soft occlusion in millimetres: where one part stands over or against another, less of the room reaches it. */
+export interface AOPainter {
+  /** a soft shadow under a closed outline */
+  poly(pts: Pt[], blur: number, k: number): void;
+  disc(c: Pt, r: number, blur: number, k: number): void;
+  /** darkening that grows from radius r0 to r1 about c, held inside the circle of radius max(r0, r1) */
+  ring(c: Pt, r0: number, r1: number, k: number): void;
+}
+
+/**
+ * An ambient-occlusion map for a flat part, read through planar UVs: u = x / span + 0.5, v = y / span + 0.5.
+ * It only dims the light from the surroundings, so the key light and its shadows are untouched.
+ */
+export function aoTexture(size: number, span: number, paint: (p: AOPainter) => void): THREE.CanvasTexture {
+  const [c, g] = canvas(size, size);
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, size, size);
+  const k = size / span;
+  const X = (x: number) => (x / span + 0.5) * size;
+  const Y = (y: number) => (0.5 - y / span) * size;
+  // a blurred shape is drawn as the shadow of a copy pushed off the canvas
+  const soft = (blur: number, alpha: number, path: () => void) => {
+    g.save();
+    g.shadowColor = `rgba(0,0,0,${alpha})`;
+    g.shadowBlur = blur * k;
+    g.shadowOffsetX = size * 3;
+    g.translate(-size * 3, 0);
+    g.fillStyle = '#000';
+    g.beginPath();
+    path();
+    g.fill();
+    g.restore();
+  };
+  paint({
+    poly(pts, blur, a) {
+      soft(blur, a, () => pts.forEach(([x, y], i) => (i ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)))));
+    },
+    disc([x, y], r, blur, a) {
+      soft(blur, a, () => g.arc(X(x), Y(y), r * k, 0, Math.PI * 2));
+    },
+    ring([x, y], r0, r1, a) {
+      const lo = Math.min(r0, r1);
+      const hi = Math.max(r0, r1);
+      const grad = g.createRadialGradient(X(x), Y(y), lo * k, X(x), Y(y), hi * k);
+      // eased, so the shading gathers into the corner instead of a straight ramp
+      for (let i = 0; i <= 8; i++) {
+        const t = i / 8;
+        const e = r1 > r0 ? t * t * t : (1 - t) ** 3;
+        grad.addColorStop(t, `rgba(0,0,0,${(a * e).toFixed(4)})`);
+      }
+      g.fillStyle = grad;
+      g.beginPath();
+      g.arc(X(x), Y(y), hi * k, 0, Math.PI * 2);
+      g.fill();
+    },
+  });
+  const t = asTexture(c, false, false);
+  t.anisotropy = 4;
   return t;
 }

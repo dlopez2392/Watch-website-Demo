@@ -1,7 +1,11 @@
+import { lazy, Suspense, useState } from 'react';
+import { hasWebGL2 } from '../lib/env';
 import { scrollToId } from '../lib/motion';
-import { WATCHES } from '../lib/watches';
+import { WATCHES, type WatchId } from '../lib/watches';
 import { PlateCase } from '../plates/plates';
 import { Pic } from './Media';
+
+const WatchViewer = lazy(() => import('./WatchViewer'));
 
 const ALT: Record<string, string> = {
   codice: 'Photograph of the Codice 39: a steel dress watch with an ivory sector dial, blued leaf hands and applied blued batons, small seconds at six, on a cognac calf strap.',
@@ -18,6 +22,8 @@ const PHOTO: Record<string, string> = {
 };
 
 export default function Collezione() {
+  const [open, setOpen] = useState<WatchId | null>(null);
+  const [can3d] = useState(() => hasWebGL2());
   const enquire = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     window.dispatchEvent(new CustomEvent('valdarno:enquire', { detail: id }));
@@ -47,7 +53,7 @@ export default function Collezione() {
           {WATCHES.map((w, i) => (
             <a key={w.id} href={`#watch-${w.id}`} onClick={jump(w.id)} data-reveal style={{ ['--i' as string]: i }}>
               <span className="watch-index-img">
-                <img src={`/img/${w.id}-900.webp`} width={900} height={1200} alt="" decoding="async" />
+                <img src={`/img/${w.id}-300.webp`} srcSet={`/img/${w.id}-300.webp 300w, /img/${w.id}-600.webp 600w`} sizes="(max-width: 700px) 45vw, 22vw" width={300} height={400} alt="" decoding="async" />
               </span>
               <span className="watch-index-text">
                 <span className="numeral">{w.numeral}</span>
@@ -76,9 +82,21 @@ export default function Collezione() {
                     decoding="async"
                     alt={ALT[w.id]}
                   />
-                  <figcaption className="hand">
-                    fot. {w.numeral}, dal vero
-                  </figcaption>
+                  {open === w.id && (
+                    <Suspense fallback={<div className="viewer" data-ready="false" />}>
+                      <WatchViewer id={w.id} label={`The ${w.name}, in three dimensions`} onClose={() => setOpen(null)} />
+                    </Suspense>
+                  )}
+                  <figcaption className="hand">{open === w.id ? `${w.numeral}, in mano` : `fot. ${w.numeral}, dal vero`}</figcaption>
+                  {can3d && (
+                    <button type="button" className="viewer-toggle label" aria-pressed={open === w.id} onClick={() => setOpen(open === w.id ? null : w.id)}>
+                      <span className="viewer-toggle-long">{open === w.id ? 'Back to the photograph' : 'Turn it in your hand'}</span>
+                      <span className="viewer-toggle-short" aria-hidden="true">
+                        {open === w.id ? 'Photograph' : 'Turn it'}
+                      </span>
+                      <span className="sr-only"> ({w.name})</span>
+                    </button>
+                  )}
                 </figure>
                 <p className="watch-numeral" aria-hidden="true">
                   {w.numeral}

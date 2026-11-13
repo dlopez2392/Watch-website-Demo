@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { scrollToId } from '../lib/motion';
+import { prefersReducedMotion } from '../lib/env';
+import { isStill, onStill, setStill } from '../lib/stillness';
 
 const LINKS: [string, string, string][] = [
   ['collezione', 'La Collezione', 'II'],
@@ -13,6 +15,10 @@ export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [dark, setDark] = useState(false);
   const [here, setHere] = useState('');
+  // the pause for everything that moves by itself; not offered where the system has already asked for stillness
+  const [canMove] = useState(() => !prefersReducedMotion());
+  const [still, setStillState] = useState(isStill);
+  useEffect(() => onStill(setStillState), []);
   const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -99,6 +105,18 @@ export default function Nav() {
       <a className="nav-reserve" href="#riserva" onClick={go('riserva')} aria-current={here === 'riserva' ? 'true' : undefined}>
         Riserva
       </a>
+      {canMove && (
+        <button
+          type="button"
+          className="nav-still"
+          aria-pressed={still}
+          onClick={() => setStill(!still)}
+          title={still ? 'Set the drawings and films moving' : 'Hold the drawings and films still'}
+        >
+          <i data-state={still ? 'play' : 'pause'} aria-hidden="true" />
+          <span className="sr-only">Hold the moving drawings and films still</span>
+        </button>
+      )}
       <button
         ref={toggle}
         type="button"

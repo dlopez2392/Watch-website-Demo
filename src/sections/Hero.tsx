@@ -19,6 +19,34 @@ export default function Hero() {
   const [now, setNow] = useState(() => new Date());
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches);
   useSyncExternalStore(subscribe, getVersion);
+  // The watch is built once the page is up and the browser is idle, so the words, the drawing and the
+  // first scroll never wait on it. Any sign of intent (a scroll, a touch, a key) starts it at once.
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (mode !== 'live') return;
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      setArmed(true);
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    const idle = () => (w.requestIdleCallback ? w.requestIdleCallback(go, { timeout: 1800 }) : window.setTimeout(go, 400));
+    // fetch the code while the page settles; build only when idle
+    const onLoad = () => {
+      void import('../hero/HeroCanvas');
+      idle();
+    };
+    if (document.readyState === 'complete') onLoad();
+    else window.addEventListener('load', onLoad, { once: true });
+    const intent = ['scroll', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    intent.forEach((e) => window.addEventListener(e, go, { once: true, passive: true }));
+    return () => {
+      done = true;
+      window.removeEventListener('load', onLoad);
+      intent.forEach((e) => window.removeEventListener(e, go));
+    };
+  }, [mode]);
 
   useEffect(() => {
     const el = wrap.current;
@@ -62,9 +90,11 @@ export default function Hero() {
 
         {mode === 'live' ? (
           <div className="hero-canvas">
-            <Suspense fallback={null}>
-              <HeroCanvas active={inView} />
-            </Suspense>
+            {armed && (
+              <Suspense fallback={null}>
+                <HeroCanvas active={inView} />
+              </Suspense>
+            )}
           </div>
         ) : (
           <img

@@ -35,6 +35,7 @@ import {
 import type { WatchSpec } from '../lib/watches';
 import { prefersReducedMotion } from '../lib/env';
 import { onFrame } from '../lib/frame';
+import { isStill } from '../lib/stillness';
 
 /**
  * Plates are drawn in millimetres from the calibre's own data, the same numbers the
@@ -197,10 +198,19 @@ function useLive(tick: (m: Mover, seconds: number, ease: number) => void, always
     let began = 0;
     const io = new IntersectionObserver(([e]) => (visible = e.isIntersecting), { threshold: 0.12 });
     io.observe(svg);
+    // paused time is taken out of the clock, so a plate picks up where it stopped
+    let held = 0;
+    let last = 0;
     const off = onFrame((now) => {
+      const dt = last ? now - last : 0;
+      last = now;
+      if (isStill()) {
+        held += dt;
+        return;
+      }
       if (!visible || (!always && svg.dataset.drawn !== 'true')) return;
       if (!began) began = now;
-      const sec = (now - began) / 1000;
+      const sec = (now - began - held) / 1000;
       const k = Math.min(1, sec / 1.8);
       fn.current(mover, sec, k * k * (3 - 2 * k));
     });

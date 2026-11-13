@@ -196,3 +196,55 @@
     display: none !important;
   }
 }
+
+/* the pause for whatever moves by itself */
+.nav-still {
+  position: relative;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin-left: -1.2rem;
+  border-radius: 50%;
+  color: inherit;
+  opacity: 0.72;
+  transition: opacity 0.4s var(--ease);
+}
+.nav-still:hover,
+.nav-still:focus-visible,
+.nav-still[aria-pressed='true'] {
+  opacity: 1;
+}
+.nav-still i {
+  position: absolute;
+  inset: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.nav-still i::before,
+.nav-still i::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+.nav-still i[data-state='pause']::before,
+.nav-still i[data-state='pause']::after {
+  width: 1px;
+  height: 9px;
+  background: currentColor;
+  transform: translate(-3px, -50%);
+}
+.nav-still i[data-state='pause']::after {
+  transform: translate(2px, -50%);
+}
+.nav-still i[data-state='play']::before {
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transform: translate(-30%, -50%);
+}
+@media (max-width: 900px) {
+  .nav-still {
+    margin-left: 0;
+    margin-right: -1.4rem;
+  }
+}

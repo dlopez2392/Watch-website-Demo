@@ -53,7 +53,14 @@ export default function HeroScene({ tier, frozen }: HeroSceneProps) {
     fontsReady().then(() => {
       if (!alive) return;
       built = buildWatch(watchById('codice'), { movement: true, detail: tier.detail, textureSize: tier.texture });
-      setModel(built);
+      const m = built;
+      // Compile its shaders off the main thread where the browser can (KHR_parallel_shader_compile),
+      // so the first frame of the watch does not stall the page. The studio renders frozen frames and skips this.
+      const parallel = !frozen && gl.extensions.has('KHR_parallel_shader_compile');
+      const compile = parallel ? gl.compileAsync(m.root, camera, scene).catch(() => undefined) : Promise.resolve();
+      compile.then(() => {
+        if (alive) setModel(m);
+      });
     });
     return () => {
       alive = false;

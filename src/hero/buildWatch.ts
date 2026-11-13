@@ -34,7 +34,7 @@ const SEPIA = INK.line.clone();
 
 export function buildWatch(spec: WatchSpec, opts: { movement: boolean; detail: number; textureSize: number }): WatchModel {
   const mats = createMaterials();
-  const ctx: Ctx = { spec, mats, detail: opts.detail, textureSize: opts.textureSize, parts: [], disposables: [], glass: [] };
+  const ctx: Ctx = { spec, mats, detail: opts.detail, textureSize: opts.textureSize, parts: [], disposables: [], glass: [], ao: [] };
   const ext: ExteriorRefs = buildExterior(ctx);
   const mov: MovementRefs | null = opts.movement ? buildMovement(ctx) : null;
 
@@ -76,12 +76,21 @@ export function buildWatch(spec: WatchSpec, opts: { movement: boolean; detail: n
     }
   };
 
+  const away = new Map<PartId, number>();
   const pose: WatchModel['pose'] = (explode, drift) => {
     for (const p of parts) {
       const e = explode(p);
+      away.set(p.id, e);
       p.group.position.copy(p.explode).multiplyScalar(e);
       p.group.rotation.z = drift(p);
       p.inner?.(e);
+    }
+    // baked contact shading belongs to the assembled watch: it lifts as soon as the parts part
+    for (const a of ctx.ao) {
+      const e = Math.max(...a.ids.map((id) => away.get(id) ?? 0));
+      const k = 1 - Math.min(1, e / 0.12);
+      const s = k * k * (3 - 2 * k);
+      for (const m of a.mats) m.aoMapIntensity = s;
     }
   };
 

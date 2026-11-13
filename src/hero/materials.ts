@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { brushedTexture, leatherTexture, perlageTexture, stripesTexture } from './textures';
+import { brushedTexture, leatherTexture, perlageTexture, stripesTexture, weaveTexture } from './textures';
 
 /**
  * The signature of the hero: every surface can be drawn in ink or rendered as metal,
@@ -145,7 +145,7 @@ export interface MatLib {
   get(key: MatKey, ink: InkUniform): THREE.Material;
   custom<T extends THREE.Material>(m: T, ink: InkUniform): T;
   crystal(ink: InkUniform): THREE.Material;
-  leather(map: THREE.Texture, ink: InkUniform): THREE.Material;
+  leather(map: THREE.Texture, ink: InkUniform, cloth?: boolean): THREE.Material;
   dispose(): void;
 }
 
@@ -170,6 +170,7 @@ export function createMaterials(): MatLib {
   stripes.repeat.set(0.7, 0.7);
   stripes.rotation = 0.55;
   const grain = leatherTexture();
+  const extra: THREE.Texture[] = [];
   grain.repeat.set(0.55, 1.1);
 
   const std = (p: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(p);
@@ -279,14 +280,23 @@ export function createMaterials(): MatLib {
       m.customProgramCacheKey = () => 'crystal-v2';
       return track(m);
     },
-    leather(map, ink) {
+    leather(map, ink, cloth = false) {
+      if (cloth) {
+        // sailcloth: matte, the weave in the bump, a cool sheen off the fibres
+        const weave = weaveTexture();
+        weave.repeat.set(2.5, 2.5);
+        extra.push(weave);
+        const m = phy({ color: '#ffffff', map, metalness: 0, roughness: 0.88, roughnessMap: weave, bumpMap: weave, bumpScale: 1.4, side: THREE.DoubleSide, sheen: 0.55, sheenRoughness: 0.75, sheenColor: new THREE.Color('#9fb0d6') });
+        m.userData.matte = true;
+        return track(applyInk(m, ink));
+      }
       const m = phy({ color: '#ffffff', map, metalness: 0, roughness: 0.62, bumpMap: grain, bumpScale: 1.6, side: THREE.DoubleSide, sheen: 0.35, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ffd9b0') });
       m.userData.matte = true;
       return track(applyInk(m, ink));
     },
     dispose() {
       all.forEach((m) => m.dispose());
-      [brushed, brushedFine, circular, sunray, perlage, stripes, grain].forEach((t) => t.dispose());
+      [brushed, brushedFine, circular, sunray, perlage, stripes, grain, ...extra].forEach((t) => t.dispose());
     },
   };
 }

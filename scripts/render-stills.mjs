@@ -37,6 +37,21 @@ for (const id of ['codice', 'lungarno', 'tirreno', 'doppiofuso']) {
     console.log('reference', id);
   });
 }
+// The close lens: one detail of each watch, framed as its own photograph rather than cut from the catalogue plate.
+const MACRO = {
+  codice: 'zoom=2.6&pan=0,-4',
+  lungarno: 'zoom=2.5&pan=1,3',
+  tirreno: 'zoom=2.4&pan=1,11',
+  doppiofuso: 'zoom=2.3&pan=-3,7',
+};
+for (const [id, frame] of Object.entries(MACRO)) {
+  if (only.length && !only.includes(`macro-${id}`) && !only.includes('macro')) continue;
+  jobs.push(async () => {
+    const png = await capture(`${STUDIO}&watch=${id}&view=macro&${frame}`, 1200, 1600, false);
+    await sharp(png).png().toFile(`${REFS}/macro-${id}.png`);
+    console.log('reference', `macro-${id}`);
+  });
+}
 if (!only.length || only.includes('calibro')) {
   jobs.push(async () => {
     const png = await capture(`${STUDIO}&watch=codice&view=back&hide=caseback,strap,buckle&zoom=1.32`, 1400, 1400, false);

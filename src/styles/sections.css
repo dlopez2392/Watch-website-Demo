@@ -1224,6 +1224,9 @@
   margin-left: -0.05em;
   user-select: none;
 }
+.footer-mark::before {
+  content: attr(data-mark);
+}
 .footer-grid {
   display: grid;
   grid-template-columns: 3fr 2fr 6fr;
@@ -1471,5 +1474,102 @@
   }
   .spec th {
     width: 38%;
+  }
+}
+
+/* ---------- the watch in the hand ---------- */
+.viewer {
+  position: absolute;
+  inset: 0.5rem 0.5rem auto 0.5rem;
+  aspect-ratio: 3 / 4;
+  background: radial-gradient(120% 90% at 40% 30%, #1a2647 0%, var(--midnight) 62%, #0b1124 100%);
+  cursor: grab;
+  touch-action: pan-y;
+  outline-offset: 3px;
+}
+.viewer:active {
+  cursor: grabbing;
+}
+.viewer canvas {
+  opacity: 0;
+  transition: opacity 0.9s ease;
+}
+.viewer[data-ready='true'] canvas {
+  opacity: 1;
+}
+.viewer-note {
+  position: absolute;
+  left: 0.9rem;
+  bottom: 0.7rem;
+  margin: 0;
+  color: rgba(236, 229, 209, 0.62);
+  pointer-events: none;
+}
+.watch .watch-print:has(.viewer),
+.watch.is-flipped .watch-print:has(.viewer) {
+  rotate: 0deg;
+  z-index: 3;
+}
+.watch-stage:has(.viewer) .watch-photo {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.viewer-toggle {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  color: var(--sanguine, #8c3a22);
+  cursor: pointer;
+}
+.viewer-toggle::before {
+  content: '';
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  border-right-color: transparent;
+  rotate: 30deg;
+}
+.viewer-toggle:hover,
+.viewer-toggle:focus-visible {
+  color: var(--ink);
+}
+.watch.is-flipped .viewer-toggle {
+  right: auto;
+  left: 0.7rem;
+}
+.viewer-toggle-short {
+  display: none;
+}
+@media (max-width: 700px) {
+  .viewer-note-more {
+    display: none;
+  }
+  /* the long label stays for screen readers; the eye gets the short one */
+  .viewer-toggle-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .viewer-toggle-short {
+    display: inline;
+  }
+  .viewer-toggle,
+  .watch.is-flipped .viewer-toggle {
+    position: static;
+    display: flex;
+    width: fit-content;
+    margin: 0.35rem 0.2rem 0.2rem auto;
   }
 }

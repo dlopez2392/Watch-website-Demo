@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { prefersReducedMotion } from '../lib/env';
+import { isStill, onStill } from '../lib/stillness';
 import { PlateFinish } from '../plates/plates';
 import { Loop, Pic } from './Media';
 
@@ -65,16 +66,23 @@ export default function Bottega() {
     v.addEventListener('pause', onPause);
     if (prefersReducedMotion()) return;
     // play only while on screen
+    let seen = false;
+    const sync = () => {
+      if (seen && !isStill()) v.play().catch(() => {});
+      else v.pause();
+    };
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) v.play().catch(() => {});
-        else v.pause();
+        seen = e.isIntersecting;
+        sync();
       },
       { threshold: 0.15 },
     );
     io.observe(v);
+    const off = onStill(sync);
     return () => {
       io.disconnect();
+      off();
       v.removeEventListener('play', onPlay);
       v.removeEventListener('pause', onPause);
     };

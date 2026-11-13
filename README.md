@@ -63,6 +63,13 @@ Node 20 or newer. No environment variables, no network calls at runtime, fonts a
   adds depth of field and a tone curve that is the identity up to a knee (ink and paper arrive
   untouched) with a long photographic shoulder above it. Smaller devices render directly, with
   lighter geometry, smaller textures and no depth of field.
+- **Contact shading.** Where one part stands over another (the flange at the edge of the dial, the
+  foot of each applied index, the corner of the seconds well, the bridges over the mainplate) a baked
+  ambient-occlusion map dims the light from the room. It is drawn in code from the same outlines as the
+  parts, and it lifts as soon as the watch comes apart, since the shadow belongs to the assembled object.
+- **Loading.** The page, its words and its drawing come first. The watch is fetched once the page has
+  loaded and built when the browser is idle, or at once on the first scroll, touch or key; its shaders
+  compile in parallel where the browser allows it.
 - **Fallbacks.** With `prefers-reduced-motion`, or without WebGL 2, the hero is a still illustration
   and the plates are shown fully drawn.
 
@@ -106,6 +113,24 @@ environment the credentials are supplied by the proxy; elsewhere set `HF_AUTH="K
 
 Stills come back at about two thousand pixels on the long side, which is the ceiling for the plates.
 
+The studio also frames a close-up of each watch (`npm run assets:stills -- macro`; prompts
+`macro-<id>` in `hf-photo.mjs`, made only when named). When those photographs exist they are meant to
+replace the detail insets, which are otherwise cut from the catalogue plates.
+
+## The collection in the hand
+
+Each watch in La Collezione can be turned in the hand (`src/sections/WatchViewer.tsx`): the same
+parametric model as the hero, the head without its strap so the back can be seen (the Codice shows its
+calibre through the sapphire, the others their engraved backs), set to the visitor's time. Drag or use
+the arrow keys; Home faces the dial, End shows the back, Escape returns to the photograph. Only one is
+open at a time, it is loaded only when asked for, and it stops drawing when scrolled away.
+
+## Motion
+
+Everything that moves by itself (the running plates and the film loops) answers to one switch in the
+bar at the top of the page (`src/lib/stillness.ts`). It starts on for visitors whose system asks for
+less motion, and it is remembered for the next visit.
+
 ## The plates
 
 Seven plates and four case drawings, all generated from the numbers in `calibre.ts` and `watches.ts`.
@@ -119,8 +144,8 @@ Once a plate has drawn itself in, it runs (`useLive` in `plates.tsx`). The going
 time of day and turns in real time; the escapement is shown at an eighth of its speed and the balance
 at a sixth, so the beat and the breathing of the spring can be followed; the winding plate winds a
 quarter turn of the ratchet at a time, the click riding over each tooth; and the hands on each case
-drawing sweep from ten past ten to the visitor's own time and keep it. Nothing moves off screen or
-for a visitor who has asked for less motion.
+drawing sweep from ten past ten to the visitor's own time and keep it. Nothing moves off screen, for a
+visitor who has asked for less motion, or while the pause in the top bar is on.
 
 - `/?plates` (all of them, fully drawn; add `&move` to set them running)
 - `/?plates=escapement` (one alone: `train`, `escapement`, `balance`, `winding`, `section`, `finish`, or a watch id)

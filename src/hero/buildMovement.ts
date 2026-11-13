@@ -33,7 +33,7 @@ import {
 import { circlePts, cyl, discInPoly, extrudeZ, facetGroups, lathe, merge, polarUV, ribbon, shapeOf, spokeWindows } from './geo';
 import type { Ctx } from './buildExterior';
 import { PartBuilder, type Part } from './parts';
-import { engravingTexture } from './textures';
+import { aoTexture, engravingTexture } from './textures';
 
 /** the engraving is drawn on the same square as the dials: 32.6 mm across */
 const DIAL_SPAN = 32.6;
@@ -107,7 +107,29 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       segs,
       { planarUV: 4.6 },
     );
-    b.mesh(plate, [b.mat('plate'), b.mat('bridgeSide')], { receive: true });
+    // Contact shading on the plate, read through a second set of planar UVs: deep under the bridges and the cock,
+    // softer under the wheels and the barrel, and gathering at the rim where the plate meets the case.
+    const uv1 = new Float32Array(plate.attributes.position.count * 2);
+    for (let i = 0; i < plate.attributes.position.count; i++) {
+      uv1[i * 2] = plate.attributes.position.getX(i) / (PLATE_R * 2) + 0.5;
+      uv1[i * 2 + 1] = plate.attributes.position.getY(i) / (PLATE_R * 2) + 0.5;
+    }
+    plate.setAttribute('uv1', new THREE.BufferAttribute(uv1, 2));
+    const ao = aoTexture(Math.min(1024, ctx.textureSize / 2), PLATE_R * 2, (p) => {
+      p.ring([0, 0], PLATE_R - 1.4, PLATE_R, 0.45);
+      p.disc(AX.barrel, pitchR(GEAR.barrel) + 0.2, 1.0, 0.4);
+      for (const [c, g] of [[AX.centre, GEAR.centreWheel], [AX.third, GEAR.thirdWheel], [AX.fourth, GEAR.fourthWheel]] as const) p.disc(c, pitchR(g), 0.8, 0.22);
+      p.disc(AX.escape, 2.4, 0.6, 0.25);
+      p.disc(AX.balance, BALANCE_R, 0.9, 0.3);
+      for (const pts of [segsToPoints(barrelBridgeSegs()), segsToPoints(trainBridgeSegs()), segsToPoints(cockSegs())]) p.poly(pts, 1.1, 0.5);
+      p.disc(PALLET_BRIDGE_END, 0.9, 0.6, 0.4);
+    });
+    ao.channel = 1;
+    ctx.disposables.push(ao);
+    const plateMat = b.mat('plate') as THREE.MeshStandardMaterial;
+    plateMat.aoMap = ao;
+    ctx.ao.push({ mats: [plateMat], ids: ['mainplate', 'bridges', 'balanceCock', 'barrel'] });
+    b.mesh(plate, [plateMat, b.mat('bridgeSide')], { receive: true });
     // motion works and keyless cover, on the dial side
     const hourW = extrudeZ(shapeOf(gearOutline(GEAR.hourWheel)), 0.04, 0.26, 0.03);
     const minW = extrudeZ(shapeOf(gearOutline(GEAR.minuteWheel)), 0.04, 0.22, 0.03).translate(AX.minuteWheel[0], AX.minuteWheel[1], 0);
