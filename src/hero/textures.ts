@@ -747,14 +747,86 @@ function arcLabel(g: CanvasRenderingContext2D, text: string, r: number, centre: 
  * The engraving on the train bridge, drawn as it is read through the caseback (so east and west are
  * exchanged). Transparent but for the letters, which are filled with midnight lacquer.
  */
-export function engravingTexture(size = 1024, jewels = 19): THREE.CanvasTexture {
+export function engravingTexture(size = 1024, jewels = 19, calibre = 'V.31'): THREE.CanvasTexture {
   const [c, p] = pen(size);
   const { g } = p;
   const ink = '#141d3d';
   const at = (250 * Math.PI) / 180;
   arcLabel(g, 'VALDARNO', 12.55, at - 0.2, 1.22, `600 SIZE ${SERIF}`, ink, 0.2);
   arcLabel(g, 'FIRENZE', 12.62, at + 0.37, 0.7, `500 SIZE ${SANS}`, ink, 0.4);
-  arcLabel(g, `CAL. V.31  ·  ${jewels} RUBINI  ·  N° 001`, 10.75, at + 0.05, 0.6, `500 SIZE ${SANS}`, ink, 0.3);
+  arcLabel(g, `CAL. ${calibre}  ·  ${jewels} RUBINI  ·  N° 001`, 10.75, at + 0.05, 0.6, `500 SIZE ${SANS}`, ink, 0.3);
+  const t = asTexture(c, true, false);
+  t.premultiplyAlpha = false;
+  return t;
+}
+
+/** Lettering round the top of an arc, tops outwards: read from above, left to right. */
+function topArc(g: CanvasRenderingContext2D, text: string, r: number, size: number, font: string, color: string, tracking = 0.12) {
+  const U = 100;
+  g.save();
+  g.font = font.replace('SIZE', `${size * U}px`);
+  const widths = [...text].map((ch) => g.measureText(ch).width / U + tracking * size);
+  g.restore();
+  const total = widths.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  [...text].forEach((ch, i) => {
+    const th = Math.PI / 2 - (acc + widths[i] / 2 - total / 2) / r;
+    label(g, ch, Math.cos(th) * r, Math.sin(th) * r, size, font, color, 0, th - Math.PI / 2);
+    acc += widths[i];
+  });
+}
+
+/**
+ * The medallion engraved on a solid caseback: a Mediterranean wind rose, the eight winds named by their
+ * initials as on a Livornese chart, with a line of lettering above it and another below. Transparent
+ * but for the cut lines, which are laid over the brushed back.
+ */
+export function medallionTexture(above: string, below: string, size = 1024): THREE.CanvasTexture {
+  const [c, p] = pen(size);
+  const { g } = p;
+  // cut steel reads as a darker, duller grey, not as black paint
+  const ink = 'rgba(58, 58, 62, 0.8)';
+  ring(g, 13.9, 0.16, ink);
+  ring(g, 13.45, 0.05, ink);
+  topArc(g, above, 12.05, 1.15, `600 SIZE ${SERIF}`, ink, 0.22);
+  arcLabel(g, below, 12.2, (3 * Math.PI) / 2, 0.72, `500 SIZE ${SANS}`, ink, 0.32);
+  ring(g, 11.05, 0.06, ink);
+  ring(g, 10.55, 0.06, ink);
+  ticks(g, 32, 10.55, 11.05, 0.05, ink);
+  // the rose: four long points to the cardinal winds, four short ones between
+  const point = (a: number, len: number, w: number) => {
+    const tip: [number, number] = [Math.cos(a) * len, Math.sin(a) * len];
+    const l: [number, number] = [Math.cos(a + Math.PI / 2) * w, Math.sin(a + Math.PI / 2) * w];
+    const r: [number, number] = [-l[0], -l[1]];
+    g.lineWidth = 0.07;
+    g.strokeStyle = ink;
+    g.fillStyle = ink;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(...tip);
+    g.lineTo(...l);
+    g.closePath();
+    g.fill();
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(...tip);
+    g.lineTo(...r);
+    g.closePath();
+    g.stroke();
+  };
+  for (let i = 0; i < 8; i++) {
+    const a = Math.PI / 2 - (i * Math.PI) / 4;
+    if (i % 2) point(a, 6.1, 0.95);
+  }
+  for (let i = 0; i < 8; i += 2) point(Math.PI / 2 - (i * Math.PI) / 4, 8.5, 1.35);
+  ring(g, 3.0, 0.05, ink);
+  ring(g, 0.55, 0.12, ink);
+  // Tramontana, Grecale, Levante, Scirocco, Ostro, Libeccio, Ponente, Maestrale
+  'TGLSOLPM'.split('').forEach((ch, i) => {
+    const a = Math.PI / 2 - (i * Math.PI) / 4;
+    const r = i % 2 ? 7.6 : 9.6;
+    label(g, ch, Math.cos(a) * r, Math.sin(a) * r, i % 2 ? 0.8 : 1.0, `600 SIZE ${SERIF}`, ink, 0);
+  });
   const t = asTexture(c, true, false);
   t.premultiplyAlpha = false;
   return t;

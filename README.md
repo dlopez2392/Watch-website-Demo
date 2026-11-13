@@ -120,8 +120,9 @@ replace the detail insets, which are otherwise cut from the catalogue plates.
 ## The collection in the hand
 
 Each watch in La Collezione can be turned in the hand (`src/sections/WatchViewer.tsx`): the same
-parametric model as the hero, the head without its strap so the back can be seen (the Codice shows its
-calibre through the sapphire, the others their engraved backs), set to the visitor's time. Drag or use
+parametric model as the hero, the head without its strap so the back can be seen (the Codice, the
+Lungarno and the Doppio Fuso show their calibres through the sapphire, each engraved with its own
+calibre and jewel count; the Tirreno's solid back carries an engraved wind rose), set to the visitor's time. Drag or use
 the arrow keys; Home faces the dial, End shows the back, Escape returns to the photograph. Only one is
 open at a time, it is loaded only when asked for, and it stops drawing when scrolled away.
 

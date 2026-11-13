@@ -11,7 +11,7 @@ export default function WatchViewer({ id, label, onClose }: { id: WatchId; label
   const turn = useRef<Turn>(newTurn());
   const [ready, setReady] = useState(false);
   return (
-    <Turntable className="viewer" spec={watchById(id)} movement={id === 'codice'} label={label} turn={turn} onEscape={onClose} onReady={() => setReady(true)}>
+    <Turntable className="viewer" spec={watchById(id)} movement={watchById(id).displayBack} label={label} turn={turn} onEscape={onClose} onReady={() => setReady(true)}>
       <p className="viewer-note label" aria-hidden="true">
         {ready ? (
           <>

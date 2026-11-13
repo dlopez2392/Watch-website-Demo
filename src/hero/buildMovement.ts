@@ -313,7 +313,9 @@ export function buildMovement(ctx: Ctx): MovementRefs {
       b.mesh(facetGroups(solid, BRIDGE_FACES, [0, 0, 1], 0.5), finish(), { receive: true });
     }
     // engraving, laid a hair above the stripes and read through the caseback
-    const engr = engravingTexture(ctx.textureSize, 19);
+    // each watch's own calibre and jewel count, as its spec table states them
+    const cal = ctx.spec.specs.find(([k]) => k === 'Calibre')?.[1] ?? 'V.31, 19 jewels';
+    const engr = engravingTexture(ctx.textureSize, Number(/(\d+) jewels/.exec(cal)?.[1] ?? 19), cal.split(',')[0]);
     ctx.disposables.push(engr);
     const plane = new THREE.PlaneGeometry(DIAL_SPAN, DIAL_SPAN).rotateY(Math.PI).translate(0, 0, z0 - 0.012);
     const lacquer = new THREE.MeshStandardMaterial({ map: engr, transparent: true, alphaTest: 0.02, metalness: 0.35, roughness: 0.3, depthWrite: false });

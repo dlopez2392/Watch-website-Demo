@@ -181,7 +181,7 @@ export default function Configurator({ config, onChange, onWrite }: { config: Co
               <Turntable
                 className="cfg-turntable"
                 spec={spec}
-                movement={config.id === 'codice'}
+                movement={spec.displayBack}
                 strap
                 fit={0.48}
                 lift={0.03}

@@ -4,7 +4,7 @@ import type { WatchSpec } from '../lib/watches';
 import { SIDE_PROFILE, axisUV, circlePts, cyl, extrudeZ, facetGroups, gableBar, lathe, merge, ridgeBlade, shapeOf, sweep, type Frame } from './geo';
 import type { MatKey, MatLib } from './materials';
 import { PartBuilder, type Part, type PartId } from './parts';
-import { aoTexture, bezelTexture, casebackTexture, dialReliefTexture, dialTexture, strapTexture } from './textures';
+import { aoTexture, bezelTexture, casebackTexture, dialReliefTexture, dialTexture, medallionTexture, strapTexture } from './textures';
 
 /** Heights along the watch axis; z = 0 is the dial-side face of the mainplate. */
 export const CASE = {
@@ -472,7 +472,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
     const zb = CASE.backBottom;
     const text = casebackTexture(`VALDARNO  ·  FIRENZE  ·  ${spec.name.toUpperCase()}  ·  REF. ${spec.ref}  ·  N° 001  ·  `, spec.engraving);
     ctx.disposables.push(text);
-    const engraved = mats.custom(new THREE.MeshStandardMaterial({ map: text, metalness: 1, roughness: 0.3 }), b.part.ink);
+    const engraved = mats.custom(new THREE.MeshStandardMaterial({ map: text, color: gold ? '#f4cf86' : '#ffffff', metalness: 1, roughness: 0.3 }), b.part.ink);
     const inner = spec.displayBack ? 14.6 : 0.0001;
     const runs = [
       { pts: [[17.4, zb], [18.5, zb + 0.6]] as P2[] },
@@ -492,6 +492,18 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       ctx.glass.push(m);
       const mesh = b.mesh(glass, m, { cast: false, edges: false });
       mesh.renderOrder = 5;
+    }
+    if (!spec.displayBack) {
+      // a solid back carries an engraved medallion, cut a hair proud of the brushed steel
+      const water = spec.specs.find(([k]) => k === 'Water')?.[1] ?? '';
+      const depth = /\((\d+) m\)/.exec(water)?.[1];
+      const bar = /(\d+) bar/.exec(water)?.[1];
+      const map = medallionTexture('LIVORNO', depth ? `PROFONDITÀ ${depth} M  ·  ${bar} BAR` : 'FATTO A FIRENZE', ctx.textureSize / 2);
+      ctx.disposables.push(map);
+      const span = 32.6;
+      const plane = new THREE.PlaneGeometry(span, span).rotateY(Math.PI).translate(0, 0, zb - 0.012);
+      const cut = new THREE.MeshStandardMaterial({ map, transparent: true, alphaTest: 0.02, metalness: 0.9, roughness: 0.55, depthWrite: false });
+      b.mesh(plane, mats.custom(cut, b.part.ink), { edges: false, cast: false });
     }
     b.proxy(cyl(18.5, zb, CASE.bottom, 24));
   }

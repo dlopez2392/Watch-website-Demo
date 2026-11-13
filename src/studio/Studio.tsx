@@ -44,7 +44,7 @@ function Still({ id, view, hide, dark, zoom }: { id: WatchId; view: string; hide
   useEffect(() => {
     let m: WatchModel | null = null;
     fontsReady().then(() => {
-      m = buildWatch(spec, { movement: id === 'codice', detail: 1, textureSize: 2048 });
+      m = buildWatch(spec, { movement: spec.displayBack, detail: 1, textureSize: 2048 });
       for (const p of m.parts) p.group.visible = !hide.includes(p.id);
       setModel(m);
     });
