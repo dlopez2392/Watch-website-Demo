@@ -655,14 +655,14 @@ export function dialReliefTexture(d: DialSpec, size = 1024): THREE.CanvasTexture
 }
 
 /** Bezel inserts are painted flat and mapped onto a ring. `R` is the outer radius of the ring in mm. */
-export function bezelTexture(kind: 'dive' | 'gmt', R: number, size = 1024): THREE.CanvasTexture {
+export function bezelTexture(kind: 'dive' | 'gmt', R: number, size = 1024, insert?: string): THREE.CanvasTexture {
   const [c, g] = canvas(size, size);
   const k = size / (R * 2);
   g.translate(size / 2, size / 2);
   g.scale(k, -k);
   const mid = R - 1.45;
   if (kind === 'dive') {
-    g.fillStyle = '#16275f';
+    g.fillStyle = insert ?? '#16275f';
     g.fillRect(-R, -R, R * 2, R * 2);
     const ink = '#e6dfcc';
     ticks(g, 60, mid + 0.45, mid + 1.05, 0.14, ink, (i) => i > 15 || i === 0);
@@ -679,7 +679,7 @@ export function bezelTexture(kind: 'dive' | 'gmt', R: number, size = 1024): THRE
     g.closePath();
     g.fill();
   } else {
-    g.fillStyle = '#b9bbbe';
+    g.fillStyle = insert ?? '#b9bbbe';
     g.fillRect(-R, -R, R * 2, R * 2);
     for (let r = R - 3; r < R; r += 0.05) ring(g, r, 0.025, `rgba(${Math.random() > 0.5 ? '255,255,255' : '60,60,60'},0.16)`);
     const ink = '#22201e';
@@ -699,17 +699,29 @@ export function bezelTexture(kind: 'dive' | 'gmt', R: number, size = 1024): THRE
 }
 
 /** Engraving around the caseback, as a roughness-and-tone map wrapped once around the ring. */
-export function casebackTexture(text: string): THREE.CanvasTexture {
+export function casebackTexture(text: string, personal?: string): THREE.CanvasTexture {
   const [c, g] = canvas(2048, 64);
   g.fillStyle = '#d2d2d2';
   g.fillRect(0, 0, 2048, 64);
   g.fillStyle = '#4a4a4a';
-  g.font = `500 30px ${SANS}`;
   g.textBaseline = 'middle';
-  const chars = [...text];
-  const adv = 2048 / chars.length;
   g.textAlign = 'center';
-  chars.forEach((ch, i) => g.fillText(ch, (i + 0.5) * adv, 34));
+  // the house line in small capitals; an owner's line, if there is one, cut larger in a cursive hand
+  const own = personal?.trim() ? [...`${personal.trim()}  ·  `] : [];
+  const house = [...text];
+  const W_OWN = 1.7;
+  const adv = 2048 / (house.length + own.length * W_OWN);
+  let x = 0;
+  g.font = `500 30px ${SANS}`;
+  for (const ch of house) {
+    g.fillText(ch, x + adv / 2, 34);
+    x += adv;
+  }
+  g.font = `italic 600 48px ${SERIF}`;
+  for (const ch of own) {
+    g.fillText(ch, x + (adv * W_OWN) / 2, 32);
+    x += adv * W_OWN;
+  }
   const t = asTexture(c, true);
   return t;
 }

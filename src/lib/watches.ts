@@ -9,6 +9,8 @@ export interface DialSpec {
   ink: string;
   accent: string;
   lume?: string;
+  /** the ceramic insert of a dive bezel */
+  insert?: string;
   model: string;
 }
 
@@ -35,7 +37,9 @@ export interface WatchSpec {
   crownGuards: boolean;
   displayBack: boolean;
   applied: 'none' | 'gold' | 'steel' | 'blued';
-  strap: { color: string; stitch: string; label: string };
+  strap: { color: string; stitch: string; label: string; cloth?: boolean };
+  /** a private line added to the engraving round the caseback */
+  engraving?: string;
   specs: [string, string][];
 }
 

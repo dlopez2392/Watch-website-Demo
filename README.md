@@ -125,6 +125,22 @@ calibre through the sapphire, the others their engraved backs), set to the visit
 the arrow keys; Home faces the dial, End shows the back, Escape returns to the photograph. Only one is
 open at a time, it is loaded only when asked for, and it stops drawing when scrolled away.
 
+## Su misura: the configurator
+
+Riserva opens with the configurator (`src/sections/Configurator.tsx`, choices and prices in
+`src/lib/configure.ts`). Choose the watch, then its case, dial, hands, strap and a line engraved by
+hand round the caseback. Every choice resolves to a full `WatchSpec`, so the 3D watch beside the
+choices is the same parametric model as the hero, rebuilt in the background and swapped in when it
+is ready. The engraving is cut into the caseback texture, and typing it turns the watch over (with
+the strap set aside) so it can be read.
+
+The list is short on purpose: three dials a watch, the metals each case is made in, two finishes of
+hands, six straps. There are no colour pickers. An order sheet keeps the reference, the price line by
+line, the weeks at the bench and the month it would be delivered. The configuration is carried in the
+address (`?c=codice~oro~notte~oro~seppia~A.R.`), so it can be sent to someone or reopened, and it
+travels into the enquiry form below. Without WebGL 2 the choices, the order sheet and the form all
+still work; the stage shows the photograph of the house version and says so.
+
 ## Motion
 
 Everything that moves by itself (the running plates and the film loops) answers to one switch in the

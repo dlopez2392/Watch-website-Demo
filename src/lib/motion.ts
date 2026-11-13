@@ -23,10 +23,12 @@ export function initScroll(): () => void {
   };
 }
 
-export function scrollToId(id: string) {
+/** `offset` (px, usually negative) leaves room above the target, for the bar at the top of the page. */
+export function scrollToId(id: string, offset = 0) {
   const el = document.getElementById(id);
   if (!el) return;
-  if (lenis) lenis.scrollTo(el, { duration: 2.2, easing: (t) => 1 - Math.pow(1 - t, 4) });
+  if (lenis) lenis.scrollTo(el, { offset, duration: 2.2, easing: (t) => 1 - Math.pow(1 - t, 4) });
+  else if (offset) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY + offset, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   else el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
   if (el.tabIndex < 0) el.tabIndex = -1;
   el.focus({ preventScroll: true });

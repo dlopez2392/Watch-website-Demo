@@ -134,7 +134,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       if (diver) {
         const knurl = gearOutline({ N: 120, m: 0.33 }, { add: 0.55, ded: 0.55 });
         const ring = extrudeZ(shapeOf(knurl, [circlePts(16.75, 72).reverse()]), 1.3, 2.98, 0.1);
-        b.mesh(ring, 'steelPolished', { edges: 50 });
+        b.mesh(ring, POL, { edges: 50 });
       } else {
         const geo = lathe(
           [
@@ -147,12 +147,12 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
           ],
           segs,
         );
-        b.mesh(geo, [b.mat('steelPolished'), b.mat('steelBrushed')]);
+        b.mesh(geo, [b.mat(POL), b.mat(gold ? 'goldBrushed' : 'steelBrushed')]);
       }
       const outer = diver ? 19.2 : 19.02;
       const insert = new THREE.RingGeometry(16.96, outer, segs, 1);
       insert.translate(0, 0, diver ? 2.99 : 2.87);
-      const map = bezelTexture(diver ? 'dive' : 'gmt', outer, ctx.textureSize / 2);
+      const map = bezelTexture(diver ? 'dive' : 'gmt', outer, ctx.textureSize / 2, spec.dial.insert ?? (gold && !diver ? '#d9b46c' : undefined));
       ctx.disposables.push(map);
       const m = diver
         ? new THREE.MeshPhysicalMaterial({ map, metalness: 0, roughness: 0.3, clearcoat: 0.65, clearcoatRoughness: 0.14 })
@@ -470,7 +470,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
   {
     const b = part(ctx, 'caseback', [0, 0, -46], [12.8, 11, CASE.backBottom + 0.9]);
     const zb = CASE.backBottom;
-    const text = casebackTexture(`VALDARNO  ·  FIRENZE  ·  ${spec.name.toUpperCase()}  ·  REF. ${spec.ref}  ·  N° 001  ·  `);
+    const text = casebackTexture(`VALDARNO  ·  FIRENZE  ·  ${spec.name.toUpperCase()}  ·  REF. ${spec.ref}  ·  N° 001  ·  `, spec.engraving);
     ctx.disposables.push(text);
     const engraved = mats.custom(new THREE.MeshStandardMaterial({ map: text, metalness: 1, roughness: 0.3 }), b.part.ink);
     const inner = spec.displayBack ? 14.6 : 0.0001;
@@ -538,7 +538,7 @@ export function buildExterior(ctx: Ctx): ExteriorRefs {
       if (toTip < 1) f.width *= 0.35 + 0.65 * Math.sqrt(Math.max(0, toTip));
       framesLong.push(f);
     }
-    const cloth = /sailcloth/i.test(spec.strap.label);
+    const cloth = spec.strap.cloth ?? /sailcloth/i.test(spec.strap.label);
     const map = strapTexture(spec.strap.color, spec.strap.stitch, cloth);
     ctx.disposables.push(map);
 
