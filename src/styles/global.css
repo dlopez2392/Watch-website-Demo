@@ -102,6 +102,10 @@ svg {
   display: block;
   max-width: 100%;
 }
+/* width and height attributes reserve the box; the image itself keeps its proportions */
+img {
+  height: auto;
+}
 a {
   color: inherit;
   text-decoration: none;

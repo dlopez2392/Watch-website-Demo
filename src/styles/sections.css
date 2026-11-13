@@ -633,7 +633,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  background: #0b1122 url('/video/film-hands-poster.webp') center / cover no-repeat;
+  background: #0b1122 url('/video/film-banco-poster.webp') center / cover no-repeat;
 }
 .film video {
   position: absolute;
@@ -1565,11 +1565,15 @@
   .viewer-toggle-short {
     display: inline;
   }
+  /* below the caption, on the side the detail print does not cover */
   .viewer-toggle,
   .watch.is-flipped .viewer-toggle {
     position: static;
     display: flex;
     width: fit-content;
+    margin: 0.35rem auto 0.2rem 0.2rem;
+  }
+  .watch.is-flipped .viewer-toggle {
     margin: 0.35rem 0.2rem 0.2rem auto;
   }
 }

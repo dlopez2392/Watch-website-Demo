@@ -23,6 +23,14 @@ for (const [id, [cx, cy, w]] of Object.entries(DETAIL)) {
   await sharp(file).resize(900, 1200, { fit: 'cover' }).webp({ quality: 78, effort: 6 }).toFile(`public/img/${id}-900.webp`);
   await sharp(file).resize(300, 400, { fit: 'cover' }).webp({ quality: 74, effort: 6 }).toFile(`public/img/${id}-300.webp`);
   await sharp(file).resize(600, 800, { fit: 'cover' }).webp({ quality: 76, effort: 6 }).toFile(`public/img/${id}-600.webp`);
+  // a close-up photographed on its own is used whole; otherwise the detail is cut from the plate
+  const macro = `${SRC}/photo-macro-${id}.png`;
+  if (existsSync(macro)) {
+    await sharp(macro).resize(1200, 1600, { fit: 'cover' }).webp({ quality: 80, effort: 6 }).toFile(`public/img/hf/detail-${id}.webp`);
+    await sharp(macro).resize(600, 800, { fit: 'cover' }).webp({ quality: 78, effort: 6 }).toFile(`public/img/hf/detail-${id}-900.webp`);
+    console.log('plate', id, m.width, m.height, '+ macro');
+    continue;
+  }
   const cw = Math.round(m.width * w);
   const ch = Math.round((cw * 4) / 3);
   const left = Math.max(0, Math.min(m.width - cw, Math.round(m.width * cx - cw / 2)));
